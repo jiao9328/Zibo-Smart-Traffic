@@ -100,5 +100,5 @@ const setMapStyle = (style) => {
 #menu a.active:hover {
     background: #3074a4;
 }
-
+</style>
   
