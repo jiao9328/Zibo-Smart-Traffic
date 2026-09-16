@@ -111,7 +111,3 @@ const setMapStyle = (style) => {
     background: #3074a4;
 }
 </style>
-  
-
-  </style>
- 943b0b51728b8e55e5786b51012633b15347bff5
