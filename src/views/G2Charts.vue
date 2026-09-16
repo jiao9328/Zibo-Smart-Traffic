@@ -149,7 +149,17 @@ const lineChart = computed(() => ({
   /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
 }
 
-
+.g2-chart:before {
+  display: block;
+  position: absolute;
+  top: -5px;
+  left: -2px;
+  content: "";
+  width: 111px;
+  height: 35px;
+  background-image: url("../assets/images/border.png");
+  transform: rotate(180deg);
+}
 
 .g2-chart:after {
   display: block;

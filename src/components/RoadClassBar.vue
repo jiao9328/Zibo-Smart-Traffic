@@ -36,25 +36,24 @@ const pick = (key) => {
 }
 </script>
 <style scoped>
-/* ===== 顶部道路分级栏：透明玻璃条 + 5 个圆角矩形按钮（参考图：深蓝底/选中青绿高亮） ===== */
+/* ===== 顶部道路分级栏：白卡片 + 5 个分段按钮（原为藏青玻璃 + 青绿高亮） ===== */
 .road-bar {
   position: fixed;
-  top: 76px;
+  top: calc(var(--header-h) + 12px);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 45;
+  z-index: var(--z-panel);
   display: flex;
   align-items: center;
   width: 33.33vw; /* 占页面 1/3 */
-  height: 66px; /* 与底部功能栏同高（实测 footer 66px） */
+  height: 60px;
   box-sizing: border-box;
-  padding: 7px 12px;
-  background: rgba(5, 18, 42, 0.62);
-  border: 1px solid rgba(56, 148, 255, 0.3);
-  border-radius: 14px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(6px);
-  gap: 8px;
+  padding: 7px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  gap: 6px;
 }
 
 .road-btn {
@@ -63,30 +62,26 @@ const pick = (key) => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  border-radius: 9px;
+  border-radius: var(--radius);
   font-size: 14px;
-  letter-spacing: 2px;
-  color: #bfe0ff;
-  background: rgba(10, 27, 63, 0.85);
-  border: 1px solid rgba(56, 148, 255, 0.28);
+  color: var(--text-sub);
+  background: var(--bg-sub);
+  border: 1px solid transparent;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
-  transition: all 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .road-btn:hover {
-  color: #fff;
-  border-color: rgba(0, 200, 184, 0.6);
-  box-shadow: 0 0 8px rgba(0, 200, 184, 0.25);
+  color: var(--primary);
+  background: var(--bg-hover);
 }
 
-/* 选中态：青绿高亮（参考图 #00C8B8） */
+/* 选中态：主色实底（原为青绿 #00C8B8，是页面上唯一一处绿色主色，与全站蓝调冲突） */
 .road-btn.on {
   color: #fff;
-  background: rgba(0, 200, 184, 0.9);
-  border-color: #00d9c9;
-  box-shadow: 0 0 12px rgba(0, 200, 184, 0.55);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  background: var(--primary);
+  font-weight: 600;
 }
 </style>

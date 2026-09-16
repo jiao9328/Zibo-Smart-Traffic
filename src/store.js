@@ -40,6 +40,9 @@ export const store = reactive({
   /* ---- 数据管理面板（底部「数据管理」按钮开关，浮层不随路由消失） ---- */
   dataPanelOpen: false,
 
+  /* ---- 交通可视化大屏（底部「交通大屏」按钮开关；全屏浮层，路由切换不消失） ---- */
+  screenOpen: false,
+
   /* ---- SQL Server 业务数据（后端 /api/mapdata 全量拉取后填充） ----
    * dbStatus: idle(未拉取) | loading | ok | fail(含 dbError 原因)
    * dbData：表名 → 行数组，图层工厂 / 控制中心 / 事件检索实时读取 */
@@ -72,6 +75,13 @@ export const store = reactive({
     busStop: false,
     vehicle: false
   },
+
+  /* ---- 动态车辆「列表 ↔ 地图」联动的唯一状态源（vehicleSim 写入，VehiclePanel 读取） ----
+   * selectedVehicleId：点击后选中的车辆 id（0..14），null = 未选中；地图 marker 常驻高亮 + 光环
+   * hoveredVehicleId ：鼠标悬停的车辆 id，null = 无；列表行与 marker 双向临时高亮
+   * 两侧都不直接改对方 DOM，一律写这里再由 watch 反向驱动，保证单向数据流。 */
+  selectedVehicleId: null,
+  hoveredVehicleId: null,
 
   /* ---- 动态车辆模拟统计（vehicleSim 每秒 tick 更新；history 为近 60 秒均速，供折线图） ---- */
   vehicleStats: {

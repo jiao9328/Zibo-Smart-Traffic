@@ -1,85 +1,197 @@
+/* ============================================================================
+ * 全局设计系统 —— 亮色专业风（白卡片 + 蓝色主色 #1769E0）
+ *
+ * 约定：
+ *   1. 组件样式一律引用下面的 CSS 变量，禁止再写裸色值 / 裸 z-index；
+ *   2. 所有浮层统一用 .ui-panel 系列类，不再各自定义背景+边框+阴影；
+ *   3. z-index 只能在 --z-* 里声明，便于全局审查层叠关系。
+ * ========================================================================== */
+
+:root {
+  /* ---- 面板与背景 ---- */
+  --bg-panel: #ffffff;
+  --bg-sub: #f7f9fc;
+  --bg-hover: #eef4ff;
+  --bg-mask: rgba(16, 24, 40, 0.45);
+
+  /* ---- 描边 ---- */
+  --border: #e3e8ef;
+  --border-strong: #cbd5e1;
+
+  /* ---- 文字 ---- */
+  --text: #1a2233;
+  --text-sub: #5a6b85;
+  --text-mute: #8c9ab0;
+
+  /* ---- 主色与语义色 ---- */
+  --primary: #1769e0;
+  --primary-hover: #2b7cf0;
+  --primary-soft: #e8f0fe;
+  --ok: #12b76a;
+  --ok-soft: #e6f7ef;
+  --warn: #f79009;
+  --warn-soft: #fef3e2;
+  --danger: #f04438;
+  --danger-soft: #feeceb;
+
+  /* ---- 形状 ---- */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow: 0 4px 16px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12);
+
+  /* ---- 层叠（唯一声明处） ---- */
+  --z-map: 0;
+  --z-panel: 46;
+  --z-header: 50;
+  --z-chart: 80;
+  --z-footer: 90;
+  --z-modal: 100;
+  --z-ai: 200;
+  /* 交通可视化大屏（TrafficScreen.vue）：全屏覆盖，是**全站唯一**故意盖住底部工具条的浮层。
+   * 上面 G2Charts 那条「浮层绝不盖住底栏」的规则对大屏不适用 —— 大屏只有全开/全关两态，
+   * 没有半屏让位形态（控制中心那种列式浮层仍然守那条规则，本 token 只是为全屏浮层开的口子）。
+   * 必须 > --z-ai(200)：否则右下角 AI 悬浮球会浮在大屏上面，变成一个"能点穿的洞"。
+   * 仍需 < --z-toast(2000)：ElMessage 提示永远在最上层。 */
+  --z-screen: 300;
+  --z-toast: 2000;
+
+  /* ---- 布局安全区（所有浮层避让用） ---- */
+  --header-h: 64px;
+  --footer-h: 78px;
+  --gap: 12px;
+  /* 控制中心左右两列：宽度与左列起点，VehiclePanel 让位时也引用，必须同源 */
+  --g2-col-w: clamp(280px, 25vw, 400px);
+  --g2-left-x: 200px;
+
+  /* ---- 左上角实时数据栏（RealtimeBar）占地 ----
+   * 导航起终点控件、区域搜索搜索条都在左上角，必须避让这个矩形：
+   * 三处各写一份 left/top 的日子结束了 —— 改栏宽漏改一处，就是「面板压住输入框点不进去」。
+   * --rt-clear 是「栏右侧再留一个 --gap」的第一个安全 x，左上角浮层用它当 left 即可。 */
+  --rt-x: 1%;
+  --rt-top: 11%;
+  --rt-w: 172px;
+  --rt-clear: calc(var(--rt-x) + var(--rt-w) + var(--gap));
+}
+
 * {
   margin: 0;
   padding: 0;
 }
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-sub);
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
 ul,
 li {
   border: none;
 }
+
 table {
   border-collapse: collapse;
-}.screen-panel {
-  border-radius: 10px;
-  padding: 12px;
-  color: #fff;
-  background: linear-gradient(135deg, rgba(8, 28, 56, 0.85), rgba(16, 48, 90, 0.75));
-  border: 1px solid rgba(56, 148, 255, 0.35);
-  box-shadow: 0 0 12px rgba(0, 150, 255, 0.15) inset, 0 0 8px rgba(0, 120, 255, 0.1);
-  position: relative;
-  backdrop-filter: blur(4px);
 }
 
-.screen-panel::before {
-  content: "";
-  position: absolute;
-  top: -1px;
-  left: -1px;
-  width: 18px;
-  height: 18px;
-  border-top: 2px solid #4fc3ff;
-  border-left: 2px solid #4fc3ff;
-  border-radius: 10px 0 0 0;
+/* ============================================================================
+ * 公共卡片 / 标题 / 数字
+ * ========================================================================== */
+
+.ui-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
 }
 
-.screen-panel::after {
-  content: "";
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 18px;
-  height: 18px;
-  border-bottom: 2px solid #4fc3ff;
-  border-right: 2px solid #4fc3ff;
-  border-radius: 0 0 10px 0;
-}
-
-.panel-title {
-  font-size: 15px;
-  font-weight: bold;
-  color: #4fc3ff;
-  letter-spacing: 2px;
-  margin-bottom: 10px;
+/* 卡片标题：左侧 3px 蓝色竖条 + 加粗文字（取代原 chart-item.png 位图标题条） */
+.ui-panel-title {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
 }
 
-.panel-title::before {
+.ui-panel-title::before {
   content: "";
-  width: 4px;
-  height: 16px;
-  background: linear-gradient(180deg, #4fc3ff, #0077ff);
+  flex: none;
+  width: 3px;
+  height: 14px;
   border-radius: 2px;
+  background: var(--primary);
 }
 
-/* 大屏数字滚动效果 */
+/* 右上角关闭按钮（各浮层通用） */
+.ui-close {
+  flex: none;
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-mute);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ui-close:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* 大屏数字（统计卡里的数值） */
 .screen-num {
-  font-family: "Consolas", "Courier New", monospace;
-  background: linear-gradient(180deg, #7dd3ff, #1e88ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-family: "DIN Alternate", "Bahnschrift", Consolas, "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary);
+  font-weight: 600;
 }
 
-/* 滚动条美化 */
+/* 小号说明文字 */
+.item-sub {
+  font-size: 11px;
+  color: var(--text-mute);
+}
+
+/* ============================================================================
+ * 滚动条
+ * ========================================================================== */
+
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(79, 195, 255, 0.4);
-  border-radius: 2px;
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-mute);
 }
 
 ::-webkit-scrollbar-track {
