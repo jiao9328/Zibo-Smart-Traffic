@@ -70,55 +70,8 @@ const plan = async () => {
 
 // 地图就绪且插件 directions 数据源已建好后才允许规划：
 // 路线请求若早于数据源创建，插件会静默跳过画线（source 永远为空）
-const styleLoaded = () => !!map && !!map.loaded && map.loaded()
-const sourceReady = () => styleLoaded() && !!map.getSource && !!map.getSource('directions')
-const mapSettled = sourceReady
-const tryPlan = () => {
-    if (planned || !sourceReady()) return
-    // style 慢加载（十几秒+）时轮询不能设上限：首次规划成功才停，
-    // 否则路线会因超时放弃而永远画不出来
-    ready = true
-    planned = true
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
-    plan()
-}
 
-// 地图就绪后再拿实例：直接刷新时 onMounted 里 sm.map 还是 null，
-// 一旦把 null 写进 map，下面那个轮询里的 styleLoaded() 就永远是 false，导航永远起不来
-useMapReady().onReady((m) => {
-    map = m
-    // 控件必须在 style 加载完成后才实例化：插件靠一次性 load 事件建数据源，
-    // 若在 style 加载中（或换风格后 load 已发过）挂载，source 永不创建、路线永远画不出来
-    const ensureCtrl = () => {
-        if (directionControl || !styleLoaded()) return
-        directionControl = new MapboxDirections({
-            accessToken: import.meta.env.VITE_MAPBOX_TOKEN,
-            // 导航指令用中文；geocoder 命名空间会原样拼进地理编码请求参数，
-            // 让起终点解析结果显示中文地名（否则默认英文 "Boshan Qu, Zibo Shi, ..."）
-            language: 'zh-Hans',
-            unit: 'metric',
-            geocoder: {
-                language: 'zh-Hans',
-                country: 'cn',
-                proximity: [118.05, 36.81]
-            }
-        })
-        map.addControl(directionControl)
-    }
-    // 低频常驻轮询：等 style 就绪 → 建控件 → 首次规划成功即停
-    // （慢网/换风格/晚挂载都兜得住）
-    pollTimer = setInterval(() => { ensureCtrl(); tryPlan() }, 300)
-})
-// 同路由下 query 变化（AI 换起终点）再规划一次
-watch(() => [route.query.from, route.query.to], () => { if (mapSettled()) plan() })
 
-onUnmounted(() => {
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
-    if (directionControl && map) {
-        map.removeControl(directionControl)
-        map.off('load', tryPlan)
-    }
-})
 </script>
 <style>
 </style>
