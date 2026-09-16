@@ -6,21 +6,7 @@
     top: 10%;
 }
 
-.headerAS {
-    background-color: rgb(76, 158, 255);
-    box-shadow: 0 0 10px 2px rgba(0, 0, 0, 0.1);
-    width: 26vw;
-    height: 50px;
-    padding: 0px 10px;
-    margin: 3px;
-    position: absolute;
-    top: 0;
-    z-index: 2;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    border-radius: 5px;
-}
+
 
 .headerAS_select {
     width: 20%;
