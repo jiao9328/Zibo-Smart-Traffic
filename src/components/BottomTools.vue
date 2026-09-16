@@ -40,7 +40,7 @@
         </button>
         <p>数据管理</p>
       </div>
-      <el-popover placement="top" :width="100" trigger="click" popper-style="background-color: #53697670;color:#fff">
+      <el-popover placement="top" :width="140" trigger="click" popper-class="tool-popover">
         <template #reference>
           <div class="item">
             <button class="toggle-btn">
@@ -50,10 +50,9 @@
           </div>
         </template>
         <div class="popover-w">
-          <RouterLink v-for="(item, index) in tools" :key="index" :to='"/mapdraw/" + item'
-             style="display: flex;justify-content: center;align-items: center;flex-direction: column;">
+          <RouterLink v-for="(item, index) in tools" :key="index" :to='"/mapdraw/" + item' class="popover-tool">
             <i :class="computeClass(item)"></i>
-            <p style="font-size: 5px;">{{ toolName[index] }}</p>
+            <p>{{ toolName[index] }}</p>
           </RouterLink>
         </div>
       </el-popover>
@@ -87,6 +86,18 @@
           <i class="iconfont icon-tucengfengge"></i>
         </button>
         <p>切换风格</p>
+      </div>
+      <!-- 交通大屏：全屏浮层开关（点其它按钮不关闭，再点本按钮才关闭）。
+           ★ 必须追加在 .btn-groups 末尾：cdp-click-test / cdp-fuzz 里有按序号硬编码的按钮表，
+           插在中间会让它们全部错位。
+           图标用 icon-gaikuang（屏幕里一条折线图），语义就是"可视化大屏"。原先用的
+           icon-tubiaozhizuomobanzhuanqu-02 虽字形存在，但放大复核（scripts/cdp-icon-grid.mjs）
+           发现它画的是**购物车** —— 字形存在 ≠ 语义正确。 -->
+      <div class="item" :class="{ on: store.screenOpen }" @click="store.screenOpen = !store.screenOpen">
+        <button class="toggle-btn">
+          <i class="iconfont icon-gaikuang"></i>
+        </button>
+        <p>交通大屏</p>
       </div>
     </div>
   </div>
@@ -128,28 +139,28 @@ const toolName = ['多边形','矩形','圆形','线']
 const tools = ["drawPolygonTool", "drawRectTool", "drawCircleTool", "line"];
 </script>
 <style>
-/* ===== V1 底部栏设计风格：居中悬浮玻璃胶囊 + 分组 + 圆形发光按钮 ===== */
+/* ===== 底部工具栏：白色悬浮胶囊 + 分组 + 方形圆角按钮 =====
+ * 原为藏青玻璃 + 圆形发光按钮 + 9px 标签，在亮底图上像贴了块黑胶带。 */
 .footer {
   position: fixed;
   left: 50%;
   bottom: 16px;
   transform: translateX(-50%);
-  z-index: 90;
+  z-index: var(--z-footer);
   display: flex;
   align-items: center;
-  padding: 7px 16px;
-  background: rgba(5, 18, 42, 0.82);
-  border: 1px solid rgba(56, 148, 255, 0.3);
-  border-radius: 14px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(6px);
+  padding: 6px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
 }
 
 .btn-groups {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #fff;
+  gap: 6px;
+  color: var(--text);
 }
 
 .btn-groups .item {
@@ -158,21 +169,21 @@ const tools = ["drawPolygonTool", "drawRectTool", "drawCircleTool", "line"];
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 2px 4px;
-  border-radius: 8px;
+  padding: 3px 5px;
+  border-radius: var(--radius);
   cursor: pointer;
   user-select: none;
-  transition: transform 0.12s;
+  transition: background 0.15s;
 }
 
 .btn-groups .item:hover {
-  transform: translateY(-2px);
+  background: var(--bg-hover);
 }
 
 .btn-groups .item p {
   margin: 0;
-  font-size: 9px;
-  color: rgba(160, 200, 255, 0.75);
+  font-size: 11px;
+  color: var(--text-sub);
   line-height: 1;
   white-space: nowrap;
 }
@@ -180,45 +191,40 @@ const tools = ["drawPolygonTool", "drawRectTool", "drawCircleTool", "line"];
 .btn-groups button {
   width: 34px;
   height: 34px;
-  border-radius: 50%;
-  border: 1px solid rgba(56, 148, 255, 0.35);
+  border-radius: 10px;
+  border: none;
   outline: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
-  color: #fff;
-  background: linear-gradient(to bottom,
-      rgba(0, 128, 255, 0.377),
-      rgba(0, 128, 255, 0.281));
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  transition: all 0.15s;
+  font-size: 16px;
+  color: var(--text-sub);
+  background: transparent;
+  transition: background 0.15s, color 0.15s;
 }
 
-.btn-groups button:hover {
+.btn-groups .item:hover button {
   cursor: pointer;
-  background: linear-gradient(to bottom,
-      rgba(0, 190, 255, 0.5),
-      rgba(0, 128, 255, 0.4));
-  box-shadow: 0 0 10px rgba(0, 150, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: var(--primary);
 }
 
-/* 开关型按钮（控制中心）点亮态 */
+/* 开关型按钮（控制中心 / 切换风格）点亮态 */
+.btn-groups .item.on {
+  background: var(--primary-soft);
+}
+
 .btn-groups .item.on button {
-  background: linear-gradient(to bottom,
-      rgba(0, 210, 255, 0.7),
-      rgba(0, 128, 255, 0.6));
-  border-color: rgba(140, 210, 255, 0.8);
-  box-shadow: 0 0 12px rgba(0, 180, 255, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: var(--primary);
 }
 
 .btn-groups .item.on p {
-  color: #7dd3ff;
+  color: var(--primary);
+  font-weight: 600;
 }
 
 a {
   text-decoration: none;
-  color: #fff;
+  color: var(--text-sub);
 }
 
 .el-button+.el-button {
@@ -231,10 +237,57 @@ a {
   justify-content: space-around;
 }
 
+/* 测量工具下拉项：原为行内 style + 5px 字号（小到读不出），改为卡片内的图标按钮 */
+.popover-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  color: var(--text-sub);
+  transition: background 0.15s, color 0.15s;
+}
+
+.popover-tool i {
+  font-size: 16px;
+}
+
+.popover-tool p {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.popover-tool:hover {
+  background: var(--bg-hover);
+  color: var(--primary);
+}
+
+/* el-popover 是 teleport 到 body 的，必须用 popper-class + 非 scoped 样式才能命中 */
+.tool-popover.el-popover.el-popper {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  padding: 6px;
+  min-width: auto;
+}
+
+.tool-popover.el-popover.el-popper .el-popper__arrow::before {
+  background: var(--bg-panel);
+  border-color: var(--border);
+}
+
+/* 查询下拉里的图标项：hover 用主色淡底（原来是深蓝渐变，在白卡片上很脏） */
+.query-item {
+  color: var(--text-sub);
+}
+
 .query-item:hover {
   cursor: pointer;
-  background: linear-gradient(to bottom,
-      rgba(0, 128, 255, 0.6),
-      rgba(0, 128, 255, 0.281));
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 </style>

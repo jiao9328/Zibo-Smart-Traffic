@@ -11,7 +11,7 @@
 
 ## 📝 项目简介
 
-一个综合性的 **WebGIS 结课开发实践项目**，以「淄博市智慧交通」为核心研究区域，采用**纯前端 + 开放地图服务 API** 架构，基于 Vue3 + AntV L7 + Mapbox GL 构建实时交通监控与可视化大屏。系统沿真实 OSM 路网与区县中心布设监控探头、信号灯、警员等要素，融合高德公交、天气、行政区划等真实服务数据，实现了从宏观地球视角到微观道路监控、从静态图层叠加到 **AI 语音指令驱动**的全方位交互体验。
+一个综合性的 **WebGIS 开发实践项目**，以「淄博市智慧交通」为核心研究区域，采用**纯前端 + 开放地图服务 API** 架构，基于 Vue3 + AntV L7 + Mapbox GL 构建实时交通监控与可视化大屏。系统沿真实 OSM 路网与区县中心布设监控探头、信号灯、警员等要素，融合高德公交、天气、行政区划等真实服务数据，实现了从宏观地球视角到微观道路监控、从静态图层叠加到 **AI 语音指令驱动**的全方位交互体验。
 
 - **研究区域**：淄博市（中心 `118.05°E, 36.81°N` · 张店区）
 - **特色亮点**：内置 AI 助手（DeepSeek 大模型 + 函数调用），文字/语音指令即可驱动导航、飞行、图层、风格等全部页面功能；无网络或 Key 失效时自动降级为离线规则引擎，常用指令依旧可用
@@ -64,7 +64,7 @@
 ## 📁 核心目录结构
 
 ```text
-Zibo-SmartTransportation-WebGIS/
+Zibo-Smart-Traffic/
 ├── public/                     # 静态资源与调试页
 ├── scripts/                    # 数据抓取与 CDP 端到端验证脚本
 ├── db/                         # 数据库脚本：setup.sql 建库建表 / seed.sql 业务数据（SSMS 执行）
@@ -112,14 +112,14 @@ Zibo-SmartTransportation-WebGIS/
 ### 1. 克隆项目并安装依赖（首次必做！）
 
 ```bash
-git clone https://github.com/jiao9328/WebGIS-demo.git
-cd WebGIS-demo
+git clone https://github.com/jiao9328/Zibo-Smart-Traffic.git
+cd Zibo-Smart-Traffic
 pnpm install      # 或 npm install；安装后 node_modules 才会出现
 ```
 
 ### 2. 配置 API Key（Mapbox 必填，否则地图白屏）
 
-密钥**不入版本库**（`.env` 已被 .gitignore 排除，GitHub 推送保护也会自动拦截含密钥的提交），仓库提供 `env.example` 模板，复制后填入自己的 Key：
+密钥**不入版本库**（`.env` 已被 .gitignore 排除，GitHub 推送保护也会自动拦截含密钥的提交），仓库提供 `.env.example` 模板，复制后填入自己的 Key：
 
 ```bash
 # Windows CMD:   copy .env.example .env
@@ -144,7 +144,20 @@ VITE_DEEPSEEK_MODEL=deepseek-v4-pro             # 模型名（选填）
 pnpm dev          # 启动开发服务器 → http://localhost:5173
 pnpm build        # 生产构建 → dist/
 pnpm preview      # 本地预览构建产物
+
+# ★ 一键启动：按需构建 + 前端 + 数据接口，单端口同源
+pnpm serve        # → http://localhost:3001，同时托管 dist/ 与 /api
 ```
+
+> **`pnpm serve` 做了什么**：`dist/` 不存在、或比 `src/` `index.html` `vite.config.js`
+> `package.json` `.env` 旧时，先跑一次 `vite build`，再起 Express 用**同一个端口**
+> 同时托管构建产物与 `/api`；都不满足则跳过构建，重复启动秒开。
+>
+> 与 `pnpm dev` 的分工：`dev` 是 5173 热更新、`/api` 代理到 3001，**要两个终端**；
+> `serve` 是 3001 单端口跑构建产物，**一个终端**，也就是部署形态。
+>
+> **`server/.env` 与 SQL Server 都不是必需的**：没有也照样启动，只是数据接口连不上，
+> 前端会自动回退内置演示数据（与入库数据同种子、同口径）。
 
 浏览器打开 http://localhost:5173 ，听到「淄博智慧交通管理系统已就绪」语音播报即启动成功。
 
@@ -155,7 +168,7 @@ pnpm preview      # 本地预览构建产物
 * **纯前端本地校验**：不连接后端、不读数据库——只跑 `npm run dev` 打开 http://localhost:5173 即停在前端登录页，登录成功原地进入系统，开箱即用。
 * **账号口令**：默认 `admin` / `123456`；需要更换时在 `.env` 用 `VITE_ADMIN_USERNAME` / `VITE_ADMIN_PASSWORD` 覆盖（`.env` 不入版本库，改完重启 dev 生效）。
 * 登录成功后右上角 Header 显示当前用户与「退出登录」按钮。
-* 注：校验为**前端演示/课程级**（路由拦截），`/api` 数据接口本身保持开放，请勿用于生产级鉴权场景。
+* 注：校验为**前端演示级**（路由拦截），`/api` 数据接口本身保持开放，请勿用于生产级鉴权场景。
 
 **🔐 登录页** > 本地账号校验，登录成功原地进入系统（地图后台已就绪，无二次加载）。
 <img width="1347" alt="登录页" src="./screenshots/login.png" />
@@ -183,6 +196,10 @@ pnpm dev       # 终端 2：前端 → http://localhost:5173
 ```
 
 开发模式下 `/api` 由 Vite 代理到 3001（见 `vite.config.js`；端口在 `server/.env` 的 `PORT` 改，两处需一致）；`pnpm build` 后用 `pnpm server` 单独启动即可同源托管前端 + 数据接口（部署形态）。
+
+> 只想开一个终端看完整效果（含数据接口）就用 **`pnpm serve`**：它按需构建 dist/ 后
+> 在 3001 单端口同时托管页面与 `/api`，`pnpm dev` + `pnpm server` 两个都省了。
+> `pnpm server` 与 `pnpm serve` 走同一支启动脚本，区别只在 `server` 不碰前端构建。
 
 **④ 在页面里增删改查**：点底部工具条「🗄️ 数据管理」打开面板 —— 表签切到「监控探头 / 信号灯 / 警员 / 实时警情 / 事件记录 / 拥堵路段 / 公交线路 / 公交站点」，即可分表浏览、新增、编辑、删除：
 * 新增/编辑坐标可手动输入，也可点「🎯 地图点选」在地图上取点回填；
@@ -222,4 +239,4 @@ pnpm dev       # 终端 2：前端 → http://localhost:5173
 
 ## 🤝 贡献与许可
 
-本项目为 WebGIS 课程结课实践项目，公开分享供学习与交流。欢迎在 [Issues](https://github.com/jiao9328/WebGIS-demo/issues) 中提问、反馈或交流想法。
+本项目为 WebGIS 开发实践项目，公开分享供学习与交流。欢迎在 [Issues](https://github.com/jiao9328/Zibo-Smart-Traffic/issues) 中提问、反馈或交流想法。

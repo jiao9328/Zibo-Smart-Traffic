@@ -9,7 +9,8 @@
     "build": "vite build",
     "prepreview": "node scripts/check-deps.mjs",
     "preview": "vite preview",
-    "server": "node --env-file=server/.env server/index.js",
+    "serve": "node scripts/serve.mjs",
+    "server": "node scripts/serve.mjs --skip-build",
     "db:seed": "node scripts/gen-seed-sql.mjs"
   },
   "dependencies": {

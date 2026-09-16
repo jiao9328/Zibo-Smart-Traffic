@@ -33,3 +33,6 @@ coverage
 
 # 密钥（DeepSeek / Mapbox / 高德 API Key），严禁上传
 .env
+
+# Claude Code 本地目录（含 settings.local.json 与临时截图），不入版本库
+.claude/

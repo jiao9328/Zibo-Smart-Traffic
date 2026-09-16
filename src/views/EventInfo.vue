@@ -16,7 +16,8 @@
   </template>
   <script setup>
   import { PointLayer } from "@antv/l7";
-  import { onMounted, inject, reactive, onUnmounted } from "vue";
+  import { reactive, onUnmounted } from "vue";
+  import { useMapReady } from "../Hooks/useMapReady";
   import { DrawRect, DrawEvent } from "@antv/l7-draw";
   import * as turf from "@turf/turf";
   import { ElMessage } from "element-plus";
@@ -29,7 +30,12 @@
   });
   
   onUnmounted(() => {
-    draw && draw.destroy();
+    // 框还没拉完就离开页面时 draw 仍在，同样要把地图状态还原回去
+    if (draw) {
+      draw.destroy();
+      draw = null;
+    }
+    if (scene) restoreMapStatus();
     if (pointLayer) {
       scene.removeLayer(pointLayer);
       pointLayer = null;
@@ -44,16 +50,24 @@
     });
   };
   
+  // l7-draw 的 destroy() 不还原它 enable() 时改过的地图状态：drag 模式下会关掉 dragPan，
+  // 不手动还原的话，拉完一次框地图就再也拖不动了（双击缩放同理）。
+  const restoreMapStatus = () => {
+    scene.setMapStatus({ dragEnable: true, doubleClickZoom: true });
+  };
+
   const toDraw = () => {
     if (pointLayer) {
       scene.removeLayer(pointLayer);
       pointLayer = null;
     }
     data.tableData = [];
-    draw = new DrawRect(scene, {});
+    // 拉框查询就是「框哪查哪」，按下拖出矩形、松开即出结果，比默认的两点点选直观
+    draw = new DrawRect(scene, { trigger: "drag" });
     draw.on(DrawEvent.Add, (e) => {
       draw.destroy();
       draw = null;
+      restoreMapStatus();
       toSearch(e);
     });
     draw.enable();
@@ -88,10 +102,10 @@
     }
   };
   
-  onMounted(() => {
-    map = inject("$scene_map").map;
-    scene = inject("$scene_map").scene;
-    console.log(1);
+  // 地图就绪后再取实例：直接刷新时 onMounted 里还是 null
+  useMapReady().onReady((m, s) => {
+    map = m;
+    scene = s;
   });
   </script>
       <style scoped>
@@ -99,42 +113,57 @@
     position: absolute;
     right: 8px;
     top: 15%;
-    z-index: 999;
-    /* background: rgba(red, rgb(80, 42, 186), blue, alpha); */
+    /* 原来是裸的 999，收敛到 --z-modal(100)：仍高于数据管理面板(96)，但不参与 1000+ 的弹窗层 */
+    z-index: var(--z-modal);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
   }
-  
+
+  /* 拉框查询按钮卡片：原来靠 --el-card-bg-color 塞了层半透明紫，白卡片上直接留白即可 */
   .el-card {
-    --el-card-bg-color: rgba(91, 107, 246, 0.4);
+    --el-card-bg-color: var(--bg-panel);
+    --el-card-border-color: var(--border);
   }
-  
+
   .displayCard {
     width: 32%;
     display: flex;
     justify-content: center;
     position: absolute;
-    left: 1%;
+    /* 原来 left:1% 与左上「实时数据栏」(left:1% + 172px，z-index 46) 完全重叠，
+     * 结果表格会被实时栏压住。右移到实时栏之外（与 --g2-left-x 同源）。 */
+    left: var(--g2-left-x);
     top: 11%;
     outline: none;
-    color: #fff;
-    background: #53697670;
-    border-radius: 4px;
-    box-shadow: 0 0 5px 3px #333;
+    color: var(--text);
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
   }
-  
+
   :deep(.el-table) {
+    --el-table-border-color: var(--border);
     background-color: transparent;
   }
-  
+
   :deep(.el-table tr) {
     background-color: transparent;
-    color: #fff;
+    color: var(--text);
     cursor: pointer;
   }
-  
-  :deep(.el-table tr:hover) {
-    background-color: #333;
+
+  :deep(.el-table th.el-table__cell) {
+    background-color: var(--bg-sub);
+    color: var(--text-sub);
   }
-  
+
+  :deep(.el-table tr:hover) {
+    background-color: var(--bg-hover);
+  }
+
   :deep(.el-table--enable-row-transition .el-table__body td.el-table__cell) {
     background-color: transparent;
   }

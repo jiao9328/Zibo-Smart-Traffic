@@ -1,34 +1,40 @@
 <template>
   <div>
     <div class="g2-left">
-      <div class="g2-chart g2-chart-left">
+      <div class="g2-chart">
         <div class="people-sum">淄博各区县车辆密度指数</div>
-        <ColumnChart v-bind="config" :data="data" />
+        <div class="g2-body">
+          <ColumnChart v-bind="config" :data="data" />
+        </div>
       </div>
-      <div class="g2-chart g2-chart-left">
+      <div class="g2-chart">
         <div class="people-sum">淄博各区县拥堵路段流量排行</div>
-        <BarChart v-bind="busChart.bus_config" :data="busChart.bus_data" />
+        <div class="g2-body">
+          <BarChart v-bind="busChart.bus_config" :data="busChart.bus_data" />
+        </div>
       </div>
     </div>
     <div class="g2-right">
-      <div class="g2-chart" style="height: 26%">
+      <div class="g2-chart g2-pie">
         <div class="people-sum">近期警情类型分布</div>
-        <PieChart v-bind="peopleChart.people_config" />
+        <div class="g2-body">
+          <PieChart v-bind="peopleChart.people_config" />
+        </div>
       </div>
-      <div class="g2-chart" style="height: 10%">
+      <div class="g2-chart g2-stat">
         <div class="people-sum">道路感知设备</div>
         <div class="hospital">
           <div class="item">
             <h4>监控探头 <span class="screen-num">{{ stat.cameraTotal }}台</span></h4>
-            <p class="item-sub">故障 <span class="screen-num" style="color:#ff6b6b;background:none;-webkit-text-fill-color:#ff6b6b">{{ stat.cameraFault }}</span></p>
+            <p class="item-sub">故障 <span class="num-fault">{{ stat.cameraFault }}</span></p>
           </div>
           <div class="item">
             <h4>信号灯 <span class="screen-num">{{ stat.lightTotal }}处</span></h4>
-            <p class="item-sub">故障 <span class="screen-num" style="color:#ff6b6b;background:none;-webkit-text-fill-color:#ff6b6b">{{ stat.lightFault }}</span></p>
+            <p class="item-sub">故障 <span class="num-fault">{{ stat.lightFault }}</span></p>
           </div>
         </div>
       </div>
-      <div class="g2-chart" style="height: 10%">
+      <div class="g2-chart g2-stat">
         <div class="people-sum">警力与公交运力</div>
         <div class="hospital">
           <div class="item">
@@ -42,7 +48,7 @@
         </div>
       </div>
       <!-- 动态车辆·信号灯联动：读 vehicleSim 统计镜像 + 近 60s 均速折线 -->
-      <div class="g2-chart vp-block" style="height: 28%">
+      <div class="g2-chart vp-block">
         <div class="people-sum">动态车辆·信号灯联动</div>
         <div class="hosp4">
           <div class="it"><b class="ok">{{ vs.running }}</b><span>行驶中</span></div>
@@ -50,7 +56,7 @@
           <div class="it"><b class="warn">{{ vs.onCongested }}</b><span>拥堵缓行</span></div>
           <div class="it"><b class="cy">{{ vs.avgSpeed }}</b><span>均速km/h</span></div>
         </div>
-        <div class="vp-line">
+        <div class="g2-body">
           <LineChart v-bind="lineChart" />
         </div>
       </div>
@@ -65,6 +71,7 @@ import { useLeftTop } from "@/Hooks/useLeftTop";
 import { useLeftBottom } from "@/Hooks/useLeftBottom";
 import { useRightTop } from "@/Hooks/useRightTop";
 import { store } from '../store'
+import { PRIMARY, AXIS_TEXT } from '@/tools/palette'
 /* DB 未就绪时的兜底源：mock 单例与入库数据同种子同口径；JSON 为公交真实数据 */
 import { cameras as mockCameras, trafficLights as mockLights, police as mockPolice } from '@/tools/mockData'
 import busRoutes from '@/assets/GIS_Data/bus_routes.json'
@@ -101,85 +108,104 @@ const stat = computed(() => {
 
 // 动态车辆联动块：vehicleSim 每秒写入的统计镜像 + 近 60s 均速（秒级刷新）
 const vs = computed(() => store.vehicleStats)
+// 注：不设 height，高度交给 .g2-body 的 flex 尺寸（原 height:92 会在面板变矮时溢出）
 const lineChart = computed(() => ({
-  height: 92,
   xField: 't',
   yField: 'speed',
   smooth: true,
-  color: '#7dd3ff',
+  color: PRIMARY,
   lineStyle: { lineWidth: 2 },
-  xAxis: { label: { style: { fill: '#bfd9ff', fontSize: 10 } }, tickCount: 6 },
-  yAxis: { label: { style: { fill: '#bfd9ff', fontSize: 10 } }, min: 0 },
+  xAxis: { label: { style: { fill: AXIS_TEXT, fontSize: 10 } }, tickCount: 6 },
+  yAxis: { label: { style: { fill: AXIS_TEXT, fontSize: 10 } }, min: 0 },
   // 依赖 history.length 触发每秒重算（push/shift 原地变更不会自动触发）
   data: (store.vehicleStats.history.length, store.vehicleStats.history.slice())
 }))
 </script>
-<style>
+<style scoped>
+/* 控制中心左右两列。
+ * 原实现有 4 个互相叠加的毛病，逐条对应到下面的属性：
+ *   1. z-index:100 高过底部工具条(90)/实时数据栏(46)/车辆面板(45) → 改用 --z-chart(80)
+ *   2. top/bottom 用固定的 160px/75vh，与 Header 和底部工具条各档分辨率下不对齐
+ *      → 改成由 --header-h / --footer-h 推出的安全区
+ *   3. height:75vh 与内部写死的 height:270px 打架，面板按百分比缩小时内容溢出盖住下一块
+ *   4. 列容器整体可点，两列之间的空隙也吃事件，挡着地图没法拖 → 容器 pointer-events:none
+ */
 .g2-left,
 .g2-right {
-  position: absolute;
-  z-index: 100; /* 全局浮层：盖过页内栏（实时数据栏等），且不被路由页面遮挡 */
-  width: 25vw;
-  top: 160px;
-  height: 75vh;
+  position: fixed;
+  top: calc(var(--header-h) + 20px);
+  bottom: calc(var(--footer-h) + 26px);
+  width: var(--g2-col-w);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: var(--gap);
+  box-sizing: border-box;
+  pointer-events: none; /* 列容器不吃事件，两列间的空隙可以直接拖地图 */
+  z-index: var(--z-chart); /* 80 < --z-footer 90：绝不盖住底部按钮 */
 }
 
 .g2-right {
   right: 60px;
 }
 
+/* 左列让开左上「实时数据栏」（left:1% + 168px，1440 宽下右边缘约 182px） */
 .g2-left {
-  left: 20px;
+  left: var(--g2-left-x);
 }
 
 .g2-chart {
-  border-radius: 20px;
-  padding: 20px;
-  width: 100%;
-
-  background: #53697670;
-  /* fallback for old browsers */
-  background: -webkit-linear-gradient(to bottom, #292e494f, #53697650);
-  /* Chrome 10-25, Safari 5.1-6 */
-  background: linear-gradient(to bottom, #292e4968, #5369766a);
   position: relative;
-  /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+  flex: 1 1 0;
+  min-height: 0; /* flex 子项默认 min-height:auto，不写这行内容会把面板撑破 */
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box; /* 修 padding 造成的横向溢出（原 content-box 多出 40px） */
+  overflow: hidden; /* 内容不得串到相邻面板 */
+  padding: 12px 16px 14px;
+  pointer-events: auto; /* 容器 none，卡片本体恢复交互 */
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
 }
 
-.g2-chart:before {
-  display: block;
-  position: absolute;
-  top: -5px;
-  left: -2px;
-  content: "";
-  width: 111px;
-  height: 35px;
-  background-image: url("../assets/images/border.png");
-  transform: rotate(180deg);
+/* G2Plot 宿主：必须有确定高度，否则 autoFit 无从计算，会兜底到 400px 撑破面板 */
+.g2-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
 }
 
-.g2-chart:after {
-  display: block;
-  position: absolute;
-  bottom: -5px;
-  right: -2px;
-  content: "";
-  width: 111px;
-  height: 35px;
-  background-image: url("../assets/images/border.png");
+/* ★ 关键一行：给 G2Plot 自己建的那层容器（.g2-body 的直接子 div）一个确定高度。
+ *
+ * 不加这行会死锁，实测过：Plot 构造时读自己容器的尺寸，那层 div 还是 height:auto 且
+ * 没有任何子节点，于是高度为 0 → 命中 getChartSize 的兜底值 400 → 画出 400px 高的 canvas
+ * → 这个 canvas 反过来把容器撑成 400 → 此后容器高度恒等于 chart.height，
+ * size-sensor 的 `height !== chart.height` 判断永远为假，forceFit 再也不会被触发，
+ * 图表就永久卡在 400px（面板 180px 也照样画 400px，溢出盖住下一块）。
+ * 用 height:100% 让它由父层（.g2-body，高度已由 flex 链确定）决定，断开这个自我循环。
+ *
+ * 必须写 :deep()：这层 div 是 G2Plot 用 JS 建出来的，不带 Vue 的 scoped 属性
+ * （scoped 会编译成 `.g2-body > div[data-v-xxx]`），不加 :deep 选择器根本匹配不上，
+ * 规则形同虚设 —— 这一点已实测确认。 */
+:deep(.g2-body > div) {
+  height: 100%;
 }
 
-.g2-chart-left {
-  height: 38%;
-}
+/* 原 .g2-chart::before/::after 是 border.png 位图装饰角（top:-5px 故意探出卡片外）。
+ * 它们既与「白卡片 + 1px 描边」的新视觉冲突，又必然被上面的 overflow:hidden 裁掉，
+ * 且未设 pointer-events:none 时还会挡住 canvas 边缘的点击 —— 直接删掉，
+ * 角落不再需要装饰。图片文件本身保留不删。 */
+
+/* 右列各块的高度配比（原来是 26%/10%/10%/28% 的行内 style，改成 flex 比例） */
+.g2-right > .g2-pie { flex: 5 1 0; }
+.g2-right > .g2-stat { flex: 2 1 0; min-height: 112px; }
+.g2-right > .vp-block { flex: 4 1 0; }
 
 .hospital {
   display: flex;
   justify-content: space-evenly;
-  color: #fff;
+  color: var(--text);
   align-items: flex-start;
   text-align: center;
 }
@@ -188,29 +214,26 @@ const lineChart = computed(() => ({
   text-align: center;
   display: flex;
   flex-direction: column;
-  /* justify-content: space-between; */
   align-items: center;
-  /* flex: 1; */
-  height: 80px;
 }
 
+/* 卡片标题：回到文档流内（原来用 top:-58px + absolute 顶到面板外面去了），
+ * 背景由 chart-item.png 位图改为纯 CSS */
 .people-sum {
-  top: -58px;
-  line-height: 46px;
-  color: white;
-  width: 100%;
-  height: 46px;
+  flex: none;
+  height: 30px;
+  line-height: 30px;
+  margin-bottom: 6px;
   text-align: center;
-  position: absolute;
-  background: url(../assets/images/chart-item.png) no-repeat;
-  z-index: 1;
+  color: var(--text);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
 }
 
-
-.item-sub {
-  margin-top: 6px;
-  font-size: 11px;
-  color: rgba(200, 220, 255, 0.75);
+/* 故障数：原来是行内 style 硬写 #ff6b6b，改用语义色变量 */
+.num-fault {
+  color: var(--danger);
+  font-weight: 600;
 }
 
 /* ===== 动态车辆·信号灯联动块 ===== */
@@ -219,12 +242,14 @@ const lineChart = computed(() => ({
   flex-direction: column;
 }
 
-/* 4 项速览：行驶中 / 红灯等待 / 拥堵缓行 / 均速（title 为 absolute，正常文档流即可） */
+/* 4 项速览：行驶中 / 红灯等待 / 拥堵缓行 / 均速 */
 .hosp4 {
   display: flex;
   justify-content: space-around;
   text-align: center;
-  margin-bottom: 2px;
+  /* 与下方折线留出呼吸感：原来只有 2px，标签紧贴曲线 */
+  margin-bottom: 8px;
+  flex: none;
 }
 
 .hosp4 .it {
@@ -236,21 +261,14 @@ const lineChart = computed(() => ({
 .hosp4 .it b {
   font-size: 17px;
   font-weight: bold;
-  text-shadow: 0 0 10px rgba(125, 211, 255, 0.55);
 }
 
-.hosp4 .it b.ok { color: #22c55e; }
-.hosp4 .it b.warn { color: #ff6b6b; text-shadow: 0 0 10px rgba(255, 107, 107, 0.6); }
-.hosp4 .it b.cy { color: #7dd3ff; }
+.hosp4 .it b.ok { color: var(--ok); }
+.hosp4 .it b.warn { color: var(--danger); }
+.hosp4 .it b.cy { color: var(--primary); }
 
 .hosp4 .it span {
-  font-size: 10px;
-  color: rgba(180, 205, 240, 0.8);
-}
-
-/* 近 60s 均速折线（autoFit 容器） */
-.vp-line {
-  flex: 1;
-  min-height: 0;
+  font-size: 11px;
+  color: var(--text-mute);
 }
 </style>

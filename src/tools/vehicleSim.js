@@ -18,10 +18,31 @@
  * 数据源：store.dbData（SQL Server，后端未就绪回退 mockData 同种子单例）
  */
 import mapboxgl from 'mapbox-gl'
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import roadData from '@/assets/GIS_Data/Zibo_roads.json'
 import { store } from '../store'
 import { trafficLights as mockLights, congestion as mockCongestion } from './mockData'
+import { CAR_COLORS } from './palette'
+
+/* ================= 车辆标识：编号 + 专属颜色 =================
+ * 15 辆车原来全是同一个 🚗，列表和地图对不上号。现在每辆车有
+ *   - 稳定的 id（0..14）
+ *   - 对用户可见的编号 carNo（id+1，即 1..15）
+ *   - 专属颜色 carColor（列表行徽标与地图 marker 同源，这是「认得哪辆」的主要锚点）
+ */
+/** 车辆专属色（按 id 取模，色板见 palette.js） */
+export const carColor = (id) => CAR_COLORS[id % CAR_COLORS.length]
+/** 对用户可见的车辆编号（1 起） */
+export const carNo = (car) => car.id + 1
+
+/** 俯视车形 SVG。车头朝上 —— 与 tick 里 `angle = atan2(...) + 90` 的约定一致
+ *  （那个 +90° 原本就是为了让「车头朝上」的 🚗 emoji 对准行驶方向）。
+ *  车身用 currentColor，颜色由 .vehicle-marker 上的 --vm-color 提供。 */
+const CAR_SVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <rect x="6.2" y="2.4" width="11.6" height="19.2" rx="4.6" fill="currentColor"/>
+  <rect x="8.3" y="6.4" width="7.4" height="5.2" rx="1.5" fill="#fff" opacity=".55"/>
+  <rect x="8.3" y="13.6" width="7.4" height="3.2" rx="1.3" fill="#fff" opacity=".35"/>
+</svg>`
 
 /* ================= 常量 ================= */
 const CAR_COUNT = 15
@@ -174,8 +195,12 @@ let congCache = congestionMap()
 let lightsAtCorridor = null // [{ cum, lights:[{id,...}...] }...] per corridor：灯挂在最近走廊点弧长上
 let visible = false
 let timer = null
-const markers = new Map()   // plate → mapboxgl.Marker
+const markers = new Map()   // car.id → mapboxgl.Marker
 const forcedColor = {}      // 调试/CDP：carId → 'red'|'yellow'|'green'|'auto'(清除)
+/* 选中的车共用同一个 Popup 实例（原来每次点击 new 一个，连点会叠一堆关不掉的气泡） */
+let popup = null
+let popupCarId = null
+let popupOpen = false // 气泡当前是否挂在地图上（addTo 只能调一次，见 showPopup 注释）
 
 /** 弧长 → 折线段下标（cum 单调递增，二分） */
 function findSeg(cum, along) {
@@ -317,11 +342,13 @@ function tick() {
     if (car.congested) congested++
     speedSum += car.speed * 3.6
 
-    const mk = markers.get(car.plate)
+    const mk = markers.get(car.id)
     if (mk) {
       mk.setLngLat([car.lng, car.lat])
       mk.getElement().querySelector('.vm-inner').style.transform = `rotate(${car.angle % 360}deg)`
-      mk.getElement().classList.toggle('vm-waiting', car.state === 'waiting')
+      syncMarkerState(car) // 类名统一走这里，别在 tick 里直接改 className
+      // 气泡跟着车走（否则车开走了气泡还钉在原地）
+      if (popupCarId === car.id && popup) popup.setLngLat([car.lng, car.lat]).setHTML(popupHtml(car))
     }
   }
 
@@ -343,29 +370,133 @@ function tick() {
   }
 }
 
+/* ================= marker 状态同步 =================
+ * 所有 marker 类名只能由这里改。
+ * 起因：tick 每 300ms 跑一次，若在 tick 里用 `el.className = '...'` 覆盖式赋值，
+ * 会把选中/悬停的 vm-focus / vm-hover 一起冲掉（高亮活不过 300ms）。
+ * 必须用 classList.toggle 逐个开关，且选中态与 tick 状态互不覆盖。 */
+function syncMarkerState(car) {
+  const mk = markers.get(car.id)
+  if (!mk) return
+  const el = mk.getElement()
+  el.classList.toggle('vm-waiting', car.state === 'waiting')
+  el.classList.toggle('vm-focus', store.selectedVehicleId === car.id)
+  el.classList.toggle('vm-hover', store.hoveredVehicleId === car.id)
+}
+
+/* 列表侧改选中/悬停时，立刻同步到地图（不等 tick，否则悬停高亮要慢 300ms） */
+watch(
+  () => [store.selectedVehicleId, store.hoveredVehicleId],
+  () => {
+    for (const car of vehicles) syncMarkerState(car)
+  }
+)
+
+/* ================= Popup（选中车辆的详情气泡，单实例复用） ================= */
+const LIGHT_ZH = { green: '绿灯', yellow: '黄灯', red: '红灯', none: '—' }
+
+function popupHtml(car) {
+  return `<b><i class="vm-popup-no" style="background:${carColor(car.id)}">${carNo(car)}</i>${car.plate}</b><br/>
+    道路：${car.road}<br/>
+    速度：${Math.round(car.speed * 3.6)} km/h<br/>
+    状态：${car.state === 'waiting' ? '红灯等待中' : '行驶中'}${car.congested ? '（拥堵缓行）' : ''}<br/>
+    前方信号灯：${LIGHT_ZH[car.lightColor] || car.lightColor}${car.lightDist ? `（距 ${car.lightDist} m）` : ''}`
+}
+
+function ensurePopup() {
+  if (popup) return popup
+  popup = new mapboxgl.Popup({ closeButton: true, offset: 20, className: 'vm-popup' })
+  /* close 的两种来源必须区分开：
+   *   - 用户主动关（气泡上的 ×，或点地图空白处触发 closeOnClick）→ 同步解除选中，
+   *     否则会出现「列表还高亮着但气泡没了」；
+   *   - 我们程序性 remove（hidePopup / 切换成不开气泡）→ 选中态由调用方负责，
+   *     这里绝不能插一脚。
+   * 判据用 popupCarId：hidePopup 会先把它清空再 remove，回调据此早退。 */
+  popup.on('close', () => {
+    popupOpen = false
+    if (popupCarId === null) return // 程序性关闭
+    popupCarId = null
+    store.selectedVehicleId = null
+  })
+  return popup
+}
+
+function showPopup(car) {
+  if (!map) return
+  const p = ensurePopup()
+  popupCarId = car.id
+  p.setLngLat([car.lng, car.lat]).setHTML(popupHtml(car))
+  /* ★ 只在「当前没显示」时才 addTo，已显示就只更新内容。
+   *
+   * mapbox-gl 2.14 的 Popup.addTo 第一句是 `this._map && this.remove()`，而
+   * Popup.remove() 结尾是 `this.fire(new Event('close'))` —— 注意这个 fire 是
+   * 无条件的，不看有没有挂在地图上。于是「点第二辆车」这条最普通的路径会变成：
+   *   selectVehicle 设好选中 → showPopup → addTo → remove() → fire('close')
+   *   → close 回调把 selectedVehicleId 清成 null，且 popupCarId 也一起清掉。
+   * 结果是刚点中的车不高亮，气泡内容虽然换成了新车却再没人能关掉它
+   * （popupCarId 为 null 时 hidePopup 直接早退）。实测由 cdp-probe8 的 S5 抓到。 */
+  if (!popupOpen) {
+    p.addTo(map)
+    popupOpen = true
+  }
+}
+
+function hidePopup() {
+  if (!popup || !popupOpen) return
+  popupCarId = null // 先清空：close 回调据此判定为程序性关闭
+  popupOpen = false
+  popup.remove()
+}
+
+/* ================= 选中 / 清除（列表与地图共用同一入口） ================= */
+/**
+ * 选中某辆车：高亮 marker + 对应列表行 +（可选）飞行定位与详情气泡。
+ * @param {number} id 车辆 id（0..14）
+ * @param {{fly?:boolean, zoom?:number, openPopup?:boolean}} [opts]
+ */
+export function selectVehicle(id, { fly = false, zoom = 15, openPopup = false } = {}) {
+  const car = vehicles.find((v) => v.id === id)
+  if (!car) return
+  store.selectedVehicleId = id
+  if (fly && map) {
+    map.stop() // 打断在途动画（首页 flyTo / 自转 ease），否则相机指令互相打断
+    map.flyTo({ center: [car.lng, car.lat], zoom, duration: 1200, essential: true })
+  }
+  if (openPopup) showPopup(car)
+  else hidePopup()
+}
+
+/** 清除选中（关闭气泡、去掉所有高亮） */
+export function clearVehicleSelection() {
+  store.selectedVehicleId = null
+  hidePopup()
+}
+
 /* ================= marker / 开关 ================= */
 function buildMarker(car) {
   const el = document.createElement('div')
   el.className = 'vehicle-marker'
-  el.innerHTML = '<span class="vm-inner">🚗</span>'
+  el.dataset.carId = String(car.id)
+  // 专属色挂在 marker 根节点上：车身 SVG 用 currentColor、徽标用 var(--vm-color)，同源
+  el.style.setProperty('--vm-color', carColor(car.id))
+  // 徽标必须是 .vm-inner 的兄弟节点 —— .vm-inner 的 transform 每 tick 被 inline rotate 覆盖
+  el.innerHTML = `<span class="vm-inner">${CAR_SVG}</span><b class="vm-badge">${carNo(car)}</b>`
+
   const m = new mapboxgl.Marker({ element: el, anchor: 'center' })
     .setLngLat([car.lng, car.lat])
     .addTo(map)
+
   el.addEventListener('click', (e) => {
     e.stopPropagation() // 关键：mapboxgl.Popup 默认 closeOnClick（监听地图容器 click），
     // 不挡住的话同一个 click 冒泡到容器，会把刚弹出的详情窗立刻关掉
-    const colorZh = { green: '🟢 绿灯', yellow: '🟡 黄灯', red: '🔴 红灯', none: '—' }
-    new mapboxgl.Popup({ closeButton: true, offset: 18, className: 'vm-popup' })
-      .setLngLat([car.lng, car.lat])
-      .setHTML(`
-        <b>🚗 ${car.plate}</b><br/>
-        道路：${car.road}<br/>
-        速度：${Math.round(car.speed * 3.6)} km/h<br/>
-        状态：${car.state === 'waiting' ? '🛑 红灯等待中' : '✅ 行驶中'}${car.congested ? '（拥堵缓行）' : ''}<br/>
-        前方信号灯：${colorZh[car.lightColor] || car.lightColor}${car.lightDist ? `（距 ${car.lightDist} m）` : ''}`)
-      .addTo(map)
+    selectVehicle(car.id, { openPopup: true })
   })
-  markers.set(car.plate, m)
+  el.addEventListener('mouseenter', () => { store.hoveredVehicleId = car.id })
+  el.addEventListener('mouseleave', () => { store.hoveredVehicleId = null })
+
+  markers.set(car.id, m)
+  // 建的时候就把当前状态刷上：图层关掉再打开时，之前选中的车应当仍是高亮的
+  syncMarkerState(car)
 }
 
 /** 显示/隐藏车辆图层（唯一写入 store.trafficOn.vehicle 的地方，避免双写漂移） */
@@ -376,8 +507,18 @@ export function setVehicleVisible(v) {
   if (visible) {
     if (!markers.size) vehicles.forEach((car) => buildMarker(car))
     else markers.forEach((m) => { m.getElement().style.display = '' })
+    /* 选中态是跨开关保留的（见 buildMarker 注释），所以重开图层时要把它的详情气泡一并挂回来，
+     * 否则会留下「车高亮着、却没有详情」的半个状态。 */
+    if (store.selectedVehicleId !== null) {
+      const car = vehicles.find((c) => c.id === store.selectedVehicleId)
+      if (car) showPopup(car)
+    }
   } else {
     markers.forEach((m) => { m.getElement().style.display = 'none' })
+    /* 关图层必须连气泡一起收：气泡是挂在车上的，车既然不可见了，气泡就没有着落。
+     * 而且 tick 一直在跑，气泡会跟着那辆隐形的车在图上自己漂（实测：关掉「动态车辆」
+     * 后气泡仍浮在地图上并持续移动）。关图层与面板 ✕ 都走这里，一处覆盖两条入口。 */
+    hidePopup()
   }
 }
 
@@ -413,7 +554,21 @@ export function initVehicleSim(scene, mapboxMap) {
         corrLighted: lightsAtCorridor.filter((a) => a.length).length,
         carOnLight: vehicles.filter((v) => v.lightId !== '').length
       }),
-      tick
+      tick,
+      /* ---- 选中联动（任务3）---- */
+      select: selectVehicle,
+      clearSelection: clearVehicleSelection,
+      selected: () => store.selectedVehicleId,
+      hovered: () => store.hoveredVehicleId,
+      /** 编号 / 颜色 / 编号徽标文本，供探针断言「列表与地图同源」 */
+      carNo,
+      carColor,
+      /** 当前所有 marker 上实际渲染出的徽标编号（按 DOM 顺序） */
+      badgeNos: () =>
+        [...document.querySelectorAll('.vehicle-marker .vm-badge')].map((b) => b.textContent),
+      /** 某个编号的 marker 当前类名（断言高亮状态用） */
+      markerClass: (no) =>
+        (document.querySelector(`.vehicle-marker[data-car-id="${no - 1}"]`) || {}).className || null
     }
   }
 }

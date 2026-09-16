@@ -2,9 +2,10 @@
     <div></div>
 </template>
 <script setup>
-import { onMounted, inject, onUnmounted, watch } from 'vue'
+import { onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { resolvePlace } from '../tools/places'
+import { useMapReady } from '../Hooks/useMapReady'
 const route = useRoute()
 let map, directionControl, ready = false, planned = false, pollTimer = null
 
@@ -82,8 +83,10 @@ const tryPlan = () => {
     plan()
 }
 
-onMounted(() => {
-    map = inject("$scene_map").map
+// 地图就绪后再拿实例：直接刷新时 onMounted 里 sm.map 还是 null，
+// 一旦把 null 写进 map，下面那个轮询里的 styleLoaded() 就永远是 false，导航永远起不来
+useMapReady().onReady((m) => {
+    map = m
     // 控件必须在 style 加载完成后才实例化：插件靠一次性 load 事件建数据源，
     // 若在 style 加载中（或换风格后 load 已发过）挂载，source 永不创建、路线永远画不出来
     const ensureCtrl = () => {

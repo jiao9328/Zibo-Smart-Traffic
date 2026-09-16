@@ -2,8 +2,8 @@
 // → 迷你面板 15 行 → 控制中心第 4 块（统计 + 折线）→ 车辆点击弹窗
 import { writeFileSync } from 'node:fs'
 
-const PORT = process.env.PORT || '9333'
-const BASE = 'http://localhost:5173'
+const PORT = process.env.CDP_PORT || '9223' // CDP 调试端口（headless Chrome）
+const BASE = `http://127.0.0.1:${process.env.APP_PORT || '5180'}` // 本机 5173 被别的项目占着，dev server 固定跑 5180
 const list = await (await fetch(`http://localhost:${PORT}/json`)).json()
 const page = list.find((t) => t.type === 'page')
 if (!page) { console.log('NO PAGE TARGET'); process.exit(1) }
@@ -45,7 +45,8 @@ ws.onopen = async () => {
     window.__errs = []
     window.addEventListener('error', (e) => window.__errs.push('ERR: ' + (e.error && e.error.message || e.message)))
     window.addEventListener('unhandledrejection', (e) => window.__errs.push('REJ: ' + (e.reason && e.reason.message || String(e.reason))))
-    try { localStorage.setItem('zb_auth_user', JSON.stringify({ username: 'admin', display_name: '系统管理员' })) } catch (e) {}
+    // 路由守卫读的是 sessionStorage（不是 localStorage），写错地方会停在登录页
+    try { sessionStorage.setItem('zb_auth_user', JSON.stringify({ username: 'admin', display_name: '系统管理员' })) } catch (e) {}
   ` })
   await send('Page.navigate', { url: BASE + '/' })
   // 等地图 boot（首次拉取 mapbox style 可能较慢，最长 60s）
