@@ -107,4 +107,7 @@ const setMapStyle = (style) => {
     font-weight: 600;
 }
 
-  </style>
+#menu a.active:hover {
+    background: #3074a4;
+}
+</style>
