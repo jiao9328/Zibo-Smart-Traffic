@@ -12,7 +12,15 @@
     <!-- 中：标题 -->
     <div class="header-center">
       <div class="logo">
-        <span class="logo-icon">🚦</span>
+        <!-- 红绿灯图标：原为 🚦 emoji（彩色位图字体，无法随主题着色，也不受字重影响） -->
+        <span class="logo-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="6" y="2.5" width="12" height="19" rx="3.4" />
+            <circle class="lamp-red" cx="12" cy="7.2" r="1.9" />
+            <circle class="lamp-yellow" cx="12" cy="12" r="1.9" />
+            <circle class="lamp-green" cx="12" cy="16.8" r="1.9" />
+          </svg>
+        </span>
         <h1 class="header-title">淄博市智慧交通管理系统</h1>
       </div>
       <p class="header-sub">ZIBO SMART TRANSPORTATION MANAGEMENT SYSTEM</p>
@@ -21,7 +29,13 @@
     <!-- 右：当前用户 + 退出登录（标题由 .header-center absolute 居中，不受两侧内容影响） -->
     <div class="header-right">
       <div class="user-box">
-        <span class="user-name">👤 {{ store.user?.display_name || store.user?.username || '未登录' }}</span>
+        <span class="user-name">
+          <svg class="user-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.7" />
+            <path d="M4.6 20.2a7.4 7.4 0 0 1 14.8 0z" />
+          </svg>
+          {{ store.user?.display_name || store.user?.username || '未登录' }}
+        </span>
         <button class="logout-btn" @click="onLogout">退出登录</button>
       </div>
     </div>
@@ -78,22 +92,22 @@ const time2 = computed(() => {
 </script>
 
 <style scoped>
-/* ===== 顶部栏：玻璃渐变条 + 左时钟 + 居中标题 + 右留空 ===== */
+/* ===== 顶部栏：白底卡片条 + 左时钟 + 居中标题 + 右用户 =====
+ * 原为藏青玻璃渐变 + 蓝光边框，和白色卡片面板是两套语言，统一到 --bg-panel。 */
 .header {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: 64px;
+  height: var(--header-h);
   box-sizing: border-box;
-  z-index: 50;
+  z-index: var(--z-header);
   display: flex;
   align-items: center;
   padding: 0 20px;
-  background: linear-gradient(180deg, rgba(2, 16, 36, 0.92), rgba(2, 16, 36, 0.55));
-  border-bottom: 1px solid rgba(56, 148, 255, 0.35);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 2px 20px rgba(0, 100, 255, 0.15);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
 
 /* 左右伸缩区（左时钟/右留空） */
@@ -126,86 +140,104 @@ const time2 = computed(() => {
   line-height: 1;
 }
 
-.logo-icon {
-  font-size: 28px;
+/* 红绿灯图标：灯身用主色，三个灯位保留语义色（这是全站唯一该有红黄绿的地方） */
+.logo-icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  fill: var(--primary);
+}
+.logo-icon .lamp-red {
+  fill: var(--danger);
+}
+.logo-icon .lamp-yellow {
+  fill: var(--warn);
+}
+.logo-icon .lamp-green {
+  fill: var(--ok);
 }
 
 .header-title {
   margin: 0;
-  font-size: 22px;
-  color: #fff;
-  letter-spacing: 4px;
-  background: linear-gradient(90deg, #4fc3ff, #7dd3ff, #4fc3ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-weight: bold;
+  font-size: 21px;
+  color: var(--text);
+  letter-spacing: 3px;
+  font-weight: 700;
   white-space: nowrap;
 }
 
 .header-sub {
-  margin: 4px 0 0;
-  font-size: 9px;
-  color: rgba(160, 200, 255, 0.6);
+  margin: 3px 0 0;
+  font-size: 10px;
+  color: var(--text-mute);
   letter-spacing: 2px;
   white-space: nowrap;
 }
 
 .timer {
   text-align: left;
-  color: #7dd3ff;
   line-height: 1.2;
 }
 
 .time-date {
   margin: 0;
   font-size: 12px;
-  color: rgba(160, 200, 255, 0.7);
+  color: var(--text-sub);
 }
 
 .time-clock {
   margin: 0;
   font-size: 20px;
-  font-family: Consolas, monospace;
+  font-variant-numeric: tabular-nums; /* 秒跳动时不抖宽度 */
+  font-family: Consolas, "DIN Alternate", monospace;
   letter-spacing: 1px;
+  color: var(--primary);
 }
 
-/* 右：用户胶囊 + 退出按钮（蓝色细边框，hover 亮起） */
+/* 右：用户胶囊 + 退出按钮 */
 .user-box {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 5px 6px 5px 14px;
-  border: 1px solid rgba(56, 148, 255, 0.4);
-  border-radius: 20px;
-  background: rgba(2, 16, 36, 0.5);
-  backdrop-filter: blur(4px);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  padding: 4px 5px 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--bg-sub);
+  transition: border-color 0.2s;
 }
 .user-box:hover {
-  border-color: rgba(79, 195, 255, 0.8);
-  box-shadow: 0 0 12px rgba(43, 140, 255, 0.25);
+  border-color: var(--border-strong);
 }
 .user-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
-  color: #7dd3ff;
+  color: var(--text-sub);
   white-space: nowrap;
-  max-width: 160px;
+  max-width: 170px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.user-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: var(--text-mute);
 }
 .logout-btn {
   padding: 4px 12px;
   font-size: 12px;
-  color: #fff;
-  background: linear-gradient(90deg, #1769e0, #2b8cff);
+  color: var(--primary);
+  background: var(--primary-soft);
   border: none;
   border-radius: 14px;
   cursor: pointer;
   white-space: nowrap;
-  transition: filter 0.2s;
+  transition: background 0.15s, color 0.15s;
 }
 .logout-btn:hover {
-  filter: brightness(1.2);
+  background: var(--primary);
+  color: #fff;
 }
 </style>

@@ -21,7 +21,8 @@ const ZB_CENTER = [118.05, 36.81]
 /* ---------------- 中文标签 ---------------- */
 export const LAYER_LABEL = {
   camera: '监控探头', trafficLight: '信号灯', police: '警员分布', congestion: '道路拥堵',
-  heat: '热力图', busRoute: '公交线路', busStop: '公交站点', building: '城市建筑', mainRoad: '道路图层'
+  heat: '热力图', busRoute: '公交线路', busStop: '公交站点', vehicle: '动态车辆',
+  building: '城市建筑', mainRoad: '道路图层'
 }
 export const ROAD_LABEL = { total: '总道路', highway: '高速公路', first: '一级道路', second: '二级道路', third: '三级道路' }
 const PAGE_LABEL = {

@@ -6,6 +6,8 @@
  *           省略时回退本地 mock 单例（口径与入库数据一致）。
  */
 import { congestion as mockCongestion } from '@/tools/mockData'
+import { PRIMARY, AXIS_TEXT } from '@/tools/palette'
+
 export const useLeftBottom = (rows) => {
       const list = rows || mockCongestion
       // 按区县聚合拥堵流量
@@ -22,14 +24,15 @@ export const useLeftBottom = (rows) => {
             xField: 'value',
             yField: 'type',
             seriesField: 'type',
-            color: ['#00bfff', '#2f8fff', '#3d7bff', '#4fc3ff', '#00e5ff', '#00c2ff', '#7dd3ff', '#1e88ff'],
+            // 单一颜色：这是「一条量纲的排名」，条长已经编码了数值，
+            // 再给 8 个不同色相只会让人以为颜色另有含义（原来是青色梯度）。
+            color: PRIMARY,
             label: {
                   position: 'right',
-                  style: { fill: '#FFFFFF', opacity: 0.6 }
+                  style: { fill: AXIS_TEXT }
             },
             legend: false,
             interactions: [{ type: "element-active" }],
-            height: 270
       };
       return {
             bus_data: data,

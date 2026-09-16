@@ -124,6 +124,7 @@ function guessActions(text) {
     [/热力|热度|人流|热区/, 'heat'],
     [/公交|巴士|线路/, 'busRoute'],
     [/站牌|站点/, 'busStop'],
+    [/动态车辆|车辆|车流|汽车|行驶的?车|移动的车/, 'vehicle'],
     [/建筑|楼宇/, 'building'],
     [/道路|路网/, 'mainRoad']
   ]
@@ -228,7 +229,7 @@ const TOOLS = [
   { name: 'map_action', description: '控制地图视角动作', input_schema: { type: 'object', properties: { action: { type: 'string', enum: ['zoom_in', 'zoom_out', 'reset_view', 'rotate_view', 'top_view', 'tilt_view'], description: 'zoom_in=放大 zoom_out=缩小 reset_view=复位淄博全景 rotate_view=环绕旋转 top_view=俯视 tilt_view=斜视' } }, required: ['action'] } },
   { name: 'fly_to', description: '地图飞到某个地点并自动缩放到能看清该地的级别（适合查看：区县/道路/地标/POI/学校等任意地名，会多级解析+在线兜底，未命中返回候选名）。注意：仅当用户说「飞到X/飞往X/定位X/去X看看」这种查看意图才用；用户说「想去X/怎么去X/从A到B」是想走路线，必须用 start_navigation，不要用本工具', input_schema: { type: 'object', properties: { place: { type: 'string', description: '地点中文名：区县、道路名、POI 名或任意地名' } }, required: ['place'] } },
   { name: 'set_road_class', description: '切换道路分级显示：total=总道路（全路网）、highway=高速公路、first=一级道路、second=二级道路、third=三级道路', input_schema: { type: 'object', properties: { level: { type: 'string', enum: ['total', 'highway', 'first', 'second', 'third'] } }, required: ['level'] } },
-  { name: 'set_traffic_layer', description: '开关交通图层', input_schema: { type: 'object', properties: { layer: { type: 'string', enum: ['camera', 'trafficLight', 'police', 'congestion', 'heat', 'busRoute', 'busStop', 'mainRoad', 'building'], description: 'camera=监控探头 trafficLight=信号灯 police=警员分布 congestion=道路拥堵 heat=热力图 busRoute=公交线路 busStop=公交站点 mainRoad=道路 building=城市建筑' }, on: { type: 'boolean', description: 'true=打开 false=关闭' } }, required: ['layer', 'on'] } },
+  { name: 'set_traffic_layer', description: '开关交通图层', input_schema: { type: 'object', properties: { layer: { type: 'string', enum: ['camera', 'trafficLight', 'police', 'congestion', 'heat', 'busRoute', 'busStop', 'vehicle', 'mainRoad', 'building'], description: 'camera=监控探头 trafficLight=信号灯 police=警员分布 congestion=道路拥堵 heat=热力图 busRoute=公交线路 busStop=公交站点 vehicle=动态车辆(模拟) mainRoad=道路 building=城市建筑' }, on: { type: 'boolean', description: 'true=打开 false=关闭' } }, required: ['layer', 'on'] } },
   { name: 'set_control_center', description: '开关控制中心（统计图表浮层）', input_schema: { type: 'object', properties: { open: { type: 'boolean' } }, required: ['open'] } },
   { name: 'goto_page', description: '跳转系统功能页', input_schema: { type: 'object', properties: { page: { type: 'string', enum: ['home', 'rotation', 'cityview', 'eventinfo', 'areasearch', 'navigation', 'changestyle'] } }, required: ['page'] } },
   { name: 'area_search', description: '区域搜索：搜索某个城市/行政区的边界轮廓并展示（相当于进入区域搜索页直接搜索）。keyword 传中文地区名，如 淄博市、山东省、济南市', input_schema: { type: 'object', properties: { keyword: { type: 'string', description: '地区中文名，至少要市级' } }, required: ['keyword'] } },
@@ -351,10 +352,10 @@ onUnmounted(() => { if (window.__ai) delete window.__ai })
   position: fixed;
   right: 44px;
   bottom: 8px;
-  z-index: 200;
+  z-index: var(--z-ai);
   width: 66px;
   height: 56px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -362,31 +363,28 @@ onUnmounted(() => { if (window.__ai) delete window.__ai })
   gap: 2px;
   cursor: pointer;
   user-select: none;
-  color: #fff;
-  background: linear-gradient(to bottom, rgba(0, 210, 255, 0.5), rgba(0, 90, 200, 0.62));
-  border: 1px solid rgba(120, 210, 255, 0.55);
-  box-shadow: 0 0 14px rgba(0, 170, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(6px);
-  transition: all 0.2s;
+  color: var(--primary);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  transition: transform 0.2s, box-shadow 0.2s, color 0.2s, background 0.2s;
 }
-.ai-fab:hover { transform: translateY(-2px); box-shadow: 0 0 20px rgba(0, 200, 255, 0.55); }
+.ai-fab:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+/* 打开态：主色实底，与底部工具条的 .on 态呼应（原为青绿渐变） */
 .ai-fab.on {
-  background: linear-gradient(to bottom, rgba(0, 200, 184, 0.65), rgba(0, 128, 160, 0.7));
-  border-color: rgba(0, 217, 201, 0.85);
-  box-shadow: 0 0 18px rgba(0, 200, 184, 0.5);
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
 }
 .ai-fab-logo {
   font-size: 17px;
   font-weight: 800;
   font-style: italic;
   letter-spacing: 1px;
-  background: linear-gradient(120deg, #fff, #9be8ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
   line-height: 1;
+  color: inherit;
 }
-.ai-fab-label { font-size: 9px; color: rgba(220, 245, 255, 0.9); line-height: 1; letter-spacing: 2px; }
+.ai-fab-label { font-size: 11px; color: inherit; line-height: 1; letter-spacing: 1px; opacity: 0.85; }
 /* 呼吸光点 */
 .ai-fab-pulse {
   position: absolute;
@@ -395,8 +393,8 @@ onUnmounted(() => { if (window.__ai) delete window.__ai })
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #00e5a0;
-  box-shadow: 0 0 8px #00e5a0;
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
   animation: aiPulse 1.8s ease-in-out infinite;
 }
 @keyframes aiPulse {
@@ -409,24 +407,23 @@ onUnmounted(() => { if (window.__ai) delete window.__ai })
   position: fixed;
   right: 44px;
   bottom: 76px;
-  z-index: 210;
+  z-index: var(--z-ai);
   width: 350px;
   max-width: calc(100vw - 120px);
   height: min(560px, calc(100vh - 150px));
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  color: #fff;
-  background: rgba(5, 18, 42, 0.94);
-  border: 1px solid rgba(56, 148, 255, 0.4);
-  border-radius: 16px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(0, 120, 255, 0.15);
-  backdrop-filter: blur(10px);
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   opacity: 0;
   transform: translateY(14px);
   pointer-events: none;
-  transition: all 0.22s ease;
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
 .ai-panel.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
 
@@ -434,36 +431,35 @@ onUnmounted(() => { if (window.__ai) delete window.__ai })
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
-  background: linear-gradient(90deg, rgba(0, 120, 255, 0.22), rgba(0, 200, 184, 0.16));
-  border-bottom: 1px solid rgba(56, 148, 255, 0.35);
+  padding: 10px 14px;
+  background: var(--bg-sub);
+  border-bottom: 1px solid var(--border);
 }
 .ai-head-logo {
   width: 34px;
   height: 34px;
   flex: 0 0 34px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
   font-weight: 800;
   font-style: italic;
-  background: linear-gradient(135deg, #00c8ff, #00b8a0);
+  background: var(--primary);
   color: #fff;
-  box-shadow: 0 0 12px rgba(0, 200, 255, 0.45);
 }
 .ai-head-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.ai-head-title { font-size: 14px; font-weight: bold; letter-spacing: 1px; }
-.ai-head-sub { font-size: 10px; color: rgba(160, 210, 255, 0.8); }
+.ai-head-title { font-size: 14px; font-weight: 600; letter-spacing: 1px; color: var(--text); }
+.ai-head-sub { font-size: 11px; color: var(--text-mute); }
 .ai-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #8e8e93;
+  background: var(--text-mute);
 }
-.ai-dot.llm { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
-.ai-dot.rule { background: #ff9500; box-shadow: 0 0 8px #ff9500; }
+.ai-dot.llm { background: var(--ok); }
+.ai-dot.rule { background: var(--warn); }
 .ai-close {
   width: 22px;
   height: 22px;
@@ -472,12 +468,11 @@ onUnmounted(() => { if (window.__ai) delete window.__ai })
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  color: rgba(200, 225, 255, 0.85);
+  color: var(--text-mute);
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.08);
-  transition: all 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
-.ai-close:hover { background: rgba(255, 80, 80, 0.5); color: #fff; }
+.ai-close:hover { background: var(--danger-soft); color: var(--danger); }
 
 /* 消息区 */
 .ai-msgs {
@@ -488,11 +483,9 @@ onUnmounted(() => { if (window.__ai) delete window.__ai })
   flex-direction: column;
   gap: 8px;
 }
-.ai-msgs::-webkit-scrollbar { width: 5px; }
-.ai-msgs::-webkit-scrollbar-thumb { background: rgba(100, 170, 255, 0.35); border-radius: 3px; }
 
-.ai-welcome { font-size: 12px; color: rgba(180, 215, 255, 0.75); line-height: 1.7; padding: 6px 2px; }
-.ai-welcome-sub { font-size: 11px; color: rgba(150, 190, 235, 0.6); }
+.ai-welcome { font-size: 12px; color: var(--text-sub); line-height: 1.7; padding: 6px 2px; }
+.ai-welcome-sub { font-size: 11px; color: var(--text-mute); }
 
 .ai-msg {
   max-width: 88%;
@@ -506,24 +499,26 @@ onUnmounted(() => { if (window.__ai) delete window.__ai })
 }
 @keyframes aiIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
 
+/* 用户气泡：主色实底白字；AI 气泡：浅灰底深字（原来是两种深浅不一的蓝，对比度都不够） */
 .ai-user {
   align-self: flex-end;
-  background: linear-gradient(135deg, rgba(0, 140, 255, 0.85), rgba(0, 110, 230, 0.8));
-  border: 1px solid rgba(130, 200, 255, 0.4);
+  color: #fff;
+  background: var(--primary);
   border-radius: 10px 3px 10px 10px;
 }
 .ai-ai {
   align-self: flex-start;
-  background: rgba(28, 60, 110, 0.75);
-  border: 1px solid rgba(90, 150, 235, 0.3);
+  color: var(--text);
+  background: var(--bg-sub);
+  border: 1px solid var(--border);
   border-radius: 3px 10px 10px 10px;
 }
 .ai-sys {
   align-self: center;
-  font-size: 10.5px;
-  color: rgba(140, 220, 210, 0.85);
-  background: rgba(0, 170, 160, 0.12);
-  border: 1px solid rgba(0, 200, 184, 0.2);
+  font-size: 11px;
+  color: var(--text-mute);
+  background: var(--bg-sub);
+  border: 1px solid var(--border);
   padding: 3px 10px;
   border-radius: 20px;
 }
@@ -535,7 +530,7 @@ onUnmounted(() => { if (window.__ai) delete window.__ai })
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: rgba(160, 220, 255, 0.8);
+  background: var(--primary);
   animation: aiBounce 1s infinite;
 }
 .ai-dots i:nth-child(2) { animation-delay: 0.15s; }
@@ -558,32 +553,31 @@ onUnmounted(() => { if (window.__ai) delete window.__ai })
 .ai-chips-tip {
   flex: 0 0 auto;
   font-size: 11px;
-  letter-spacing: 1px;
-  color: rgba(150, 200, 255, 0.85);
+  color: var(--text-mute);
   line-height: 22px;
   padding-left: 2px;
   white-space: nowrap;
 }
 .ai-chip {
   flex: 0 0 auto;
-  font-size: 10.5px;
+  font-size: 11px;
   padding: 4px 9px;
   border-radius: 20px;
-  color: rgba(190, 225, 255, 0.9);
-  background: rgba(0, 110, 220, 0.18);
-  border: 1px solid rgba(90, 170, 255, 0.35);
+  color: var(--text-sub);
+  background: var(--bg-sub);
+  border: 1px solid var(--border);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.ai-chip:hover { background: rgba(0, 140, 255, 0.4); color: #fff; }
+.ai-chip:hover { background: var(--primary-soft); color: var(--primary); border-color: var(--primary); }
 
 /* 输入区 */
 .ai-input-row {
   display: flex;
   gap: 8px;
   padding: 10px 12px 12px;
-  border-top: 1px solid rgba(56, 148, 255, 0.25);
+  border-top: 1px solid var(--border);
 }
 .ai-input {
   flex: 1;
@@ -591,27 +585,27 @@ onUnmounted(() => { if (window.__ai) delete window.__ai })
   box-sizing: border-box;
   padding: 0 12px;
   font-size: 12.5px;
-  color: #fff;
-  background: rgba(12, 34, 66, 0.9);
-  border: 1px solid rgba(90, 160, 255, 0.4);
-  border-radius: 8px;
+  color: var(--text);
+  background: var(--bg-sub);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   outline: none;
-  transition: border 0.15s;
+  transition: border-color 0.15s, background 0.15s;
 }
-.ai-input:focus { border-color: rgba(0, 200, 255, 0.8); }
-.ai-input::placeholder { color: rgba(150, 190, 235, 0.5); }
+.ai-input:focus { border-color: var(--primary); background: var(--bg-panel); }
+.ai-input::placeholder { color: var(--text-mute); }
 .ai-send {
   height: 34px;
   padding: 0 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius);
   font-size: 12.5px;
   color: #fff;
-  background: linear-gradient(135deg, rgba(0, 160, 255, 0.9), rgba(0, 130, 235, 0.85));
+  background: var(--primary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s;
   letter-spacing: 2px;
 }
-.ai-send:hover:not(:disabled) { background: linear-gradient(135deg, rgba(0, 200, 255, 0.95), rgba(0, 150, 255, 0.9)); box-shadow: 0 0 10px rgba(0, 180, 255, 0.5); }
+.ai-send:hover:not(:disabled) { background: var(--primary-hover); }
 .ai-send:disabled { opacity: 0.45; cursor: not-allowed; }
 </style>

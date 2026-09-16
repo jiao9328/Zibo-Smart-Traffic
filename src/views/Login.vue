@@ -5,7 +5,15 @@
     <div class="login-decor"></div>
     <div class="login-card">
       <div class="login-brand">
-        <span class="brand-icon">🚦</span>
+        <!-- 与 Header 同款红绿灯 SVG（原为 🚦 emoji，在浅色卡片上显得脏且不可着色） -->
+        <span class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="6" y="2.5" width="12" height="19" rx="3.4" />
+            <circle class="lamp-red" cx="12" cy="7.2" r="1.9" />
+            <circle class="lamp-yellow" cx="12" cy="12" r="1.9" />
+            <circle class="lamp-green" cx="12" cy="16.8" r="1.9" />
+          </svg>
+        </span>
         <h1 class="brand-title">淄博市智慧交通管理系统</h1>
         <p class="brand-sub">ZIBO SMART TRANSPORTATION MANAGEMENT SYSTEM</p>
       </div>
@@ -41,8 +49,7 @@
         >登 录</el-button>
       </el-form>
 
-      <p v-if="isDev" class="login-hint">默认账号 admin / 123456（可修改 server/.env 的 ADMIN_PASSWORD）</p>
-      <p class="login-copy">数据服务登录 · 账号由 SQL Server 校验</p>
+      <p class="login-copy">本地账号校验 · 不连接数据库</p>
     </div>
   </div>
 </template>
@@ -56,9 +63,6 @@ import { speak } from '../tools/speech'
 
 const route = useRoute()
 const router = useRouter()
-
-// 开发环境才在页脚提示默认账号（生产构建不显示）
-const isDev = import.meta.env.DEV
 
 const username = ref('')
 const password = ref('')
@@ -91,24 +95,26 @@ const onLogin = async () => {
 </script>
 
 <style scoped>
+/* 登录页：浅色专业风。原来是「深蓝底 + 蓝光」的科技大屏套路，和登录后的白卡片系统
+ * 完全是两套语言，一进来像换了个产品。 */
 .login-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 9999; /* 独立覆盖层，高于 --z-toast，登录前必须压住全站 */
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #020f24 0%, #031a3a 55%, #020f24 100%);
+  background: var(--bg-sub);
   overflow: hidden;
 }
 
-/* 低透明度径向蓝光装饰，营造大屏科技感 */
+/* 角落淡蓝光晕：极低饱和度，只用来打破纯色平铺，不再做「科技感」 */
 .login-decor {
   position: absolute;
   width: 900px;
   height: 900px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(38, 130, 255, 0.22) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(23, 105, 224, 0.07) 0%, transparent 65%);
   pointer-events: none;
 }
 
@@ -116,11 +122,10 @@ const onLogin = async () => {
   position: relative;
   width: 400px;
   padding: 44px 40px 26px;
-  border-radius: 14px;
-  background: rgba(8, 28, 56, 0.88);
-  border: 1px solid rgba(56, 148, 255, 0.35);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 0 40px rgba(0, 100, 255, 0.25), inset 0 0 30px rgba(38, 130, 255, 0.06);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
 }
 
 .login-brand {
@@ -128,40 +133,57 @@ const onLogin = async () => {
   margin-bottom: 30px;
 }
 .brand-icon {
-  font-size: 40px;
+  display: inline-block;
+}
+.brand-icon svg {
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto;
+  fill: var(--primary);
+}
+.brand-icon .lamp-red {
+  fill: var(--danger);
+}
+.brand-icon .lamp-yellow {
+  fill: var(--warn);
+}
+.brand-icon .lamp-green {
+  fill: var(--ok);
 }
 .brand-title {
-  margin: 8px 0 4px;
+  margin: 10px 0 4px;
   font-size: 21px;
   letter-spacing: 3px;
-  color: #fff;
+  color: var(--text);
   font-weight: 600;
 }
 .brand-sub {
   margin: 0;
   font-size: 10px;
   letter-spacing: 1.5px;
-  color: rgba(125, 211, 255, 0.75);
+  color: var(--text-mute);
 }
 
-/* 深色卡片里的 Element 输入框适配（覆盖 Element Plus 默认白底） */
+/* 输入框：白卡片上的默认 Element 样式本来就合适，只调圆角与聚焦色 */
 .login-form :deep(.el-input__wrapper) {
-  background: rgba(2, 16, 36, 0.6);
-  box-shadow: 0 0 0 1px rgba(56, 148, 255, 0.35) inset;
-  border-radius: 8px;
+  background: var(--bg-sub);
+  box-shadow: 0 0 0 1px var(--border) inset;
+  border-radius: var(--radius);
 }
 .login-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #2b8cff inset, 0 0 12px rgba(43, 140, 255, 0.25);
+  background: var(--bg-panel);
+  box-shadow: 0 0 0 1px var(--primary) inset;
 }
 .login-form :deep(.el-input__inner) {
-  color: #fff;
+  color: var(--text);
   font-size: 14px;
 }
 .login-form :deep(.el-input__inner::placeholder) {
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-mute);
 }
 .login-form :deep(.el-input__icon) {
-  color: rgba(125, 211, 255, 0.8);
+  color: var(--text-mute);
 }
 .login-form :deep(.el-form-item) {
   margin-bottom: 18px;
@@ -172,35 +194,29 @@ const onLogin = async () => {
   margin-top: 4px;
   font-size: 15px;
   letter-spacing: 8px;
-  background: linear-gradient(90deg, #1769e0, #2b8cff);
+  background: var(--primary);
   border: none;
 }
 .login-btn:hover {
-  background: linear-gradient(90deg, #2b8cff, #4fc3ff);
+  background: var(--primary-hover);
 }
 
 .login-error {
   margin: 0 0 12px;
   padding: 8px 12px;
   font-size: 13px;
-  color: #ff8080;
-  background: rgba(255, 80, 80, 0.12);
-  border: 1px solid rgba(255, 80, 80, 0.35);
-  border-radius: 6px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
   text-align: left;
 }
 
-.login-hint {
-  margin: 22px 0 0;
-  font-size: 12px;
-  text-align: center;
-  color: rgba(125, 211, 255, 0.65);
-}
 .login-copy {
   margin: 10px 0 0;
   font-size: 11px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-mute);
   letter-spacing: 1px;
 }
 </style>

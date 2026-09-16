@@ -2,13 +2,13 @@
   <div class="dm-panel">
     <!-- 标题栏 -->
     <div class="dm-head">
-      <div class="dm-title">🗄️ 数据管理 <span class="dm-sub">SQL Server · ZiboSmartTraffic</span></div>
+      <div class="dm-title"><i class="iconfont icon-ziliaoku"></i> 数据管理 <span class="dm-sub">SQL Server · ZiboSmartTraffic</span></div>
       <div class="dm-head-right">
         <span class="dm-state" :class="'s-' + store.dbStatus">
           <i class="dm-dot"></i>{{ stateText }}
         </span>
         <el-button size="small" text bg class="dm-re" @click="retry" :loading="store.dbStatus === 'loading'">
-          🔄 重连
+          重连
         </el-button>
         <el-button size="small" text bg class="dm-close" @click="store.dataPanelOpen = false">✕ 关闭</el-button>
       </div>
@@ -89,7 +89,7 @@
         <div v-else-if="f.k === 'lng'" class="dm-coord">
           <el-input-number v-model="form.lng" :precision="6" :step="0.0001" controls-position="right" placeholder="经度" />
           <el-input-number v-model="form.lat" :precision="6" :step="0.0001" controls-position="right" placeholder="纬度" />
-          <el-button size="small" type="warning" plain :disabled="picking" @click="startPick">🎯 地图点选</el-button>
+          <el-button size="small" type="warning" plain :disabled="picking" @click="startPick">地图点选</el-button>
         </div>
       </div>
       <!-- 公交线路几何：地图画线 -->
@@ -97,15 +97,15 @@
         <label class="dm-flabel">线路走向<i class="dm-req">*</i></label>
         <div class="dm-draw">
           <el-button size="small" type="warning" plain :disabled="!!drawBusy" @click="startDraw">
-            ✏️ {{ form.geometry ? '重画线路' : '在地图画线' }}
+            {{ form.geometry ? '重画线路' : '在地图画线' }}
           </el-button>
           <el-button v-if="form.geometry" size="small" text type="danger" @click="clearGeom">清除</el-button>
           <span class="dm-draw-tip">
-            {{ drawBusy ? '🖱️ 左键逐点画线，双击 / 右键结束' : form.geometry ? `已绘制 ${form.geometry.coordinates.length} 个节点` : '未绘制' }}
+            {{ drawBusy ? '左键逐点画线，双击 / 右键结束' : form.geometry ? `已绘制 ${form.geometry.coordinates.length} 个节点` : '未绘制' }}
           </span>
         </div>
       </div>
-      <p class="dm-picktip" v-if="picking">🎯 点选模式：在地图上单击目标位置，坐标将回填到上方表单（可按 Esc 取消）</p>
+      <p class="dm-picktip" v-if="picking">点选模式：在地图上单击目标位置，坐标将回填到上方表单（可按 Esc 取消）</p>
     </div>
     <template #footer>
       <el-button size="small" @click="closeDialog">取 消</el-button>
@@ -131,6 +131,7 @@ import { store } from '../store'
 import { api } from '../api'
 import { refreshTrafficLayer, refreshVisibleTrafficLayers } from '../tools/initTrafficLayers'
 import { DISTRICTS } from '../tools/generators'
+import { PRIMARY, OK, WARN, DANGER } from '../tools/palette'
 
 const sm = inject('$scene_map')
 const map = () => sm.map
@@ -278,19 +279,27 @@ const LAYER_BY_TABLE = {
 }
 
 /* ---------- 显示格式化 ---------- */
+/* 状态色统一取自 palette（原来写死 #22c55e/#ff3b30/#ffd60a/#94a3b8 等一套 Tailwind 色，
+ * 和全站 token 的 --ok/--warn/--danger 不是同一组值，换肤后表格与卡片会对不上） */
+const MUTE = '#8C9AB0'
+const ORANGE = '#EF6820'
 const STATUS_STYLE = {
-  cameras: { normal: ['正常', '#22c55e'], fault: ['故障', '#ff3b30'] },
-  traffic_lights: { green: ['绿灯', '#22c55e'], red: ['红灯', '#ff3b30'], yellow: ['黄灯', '#ffd60a'], fault: ['故障', '#8e8e93'] },
-  alerts: { handling: ['处置中', '#ffd60a'], pending: ['待处置', '#94a3b8'] }
+  cameras: { normal: ['正常', OK], fault: ['故障', DANGER] },
+  traffic_lights: { green: ['绿灯', OK], red: ['红灯', DANGER], yellow: ['黄灯', WARN], fault: ['故障', MUTE] },
+  alerts: { handling: ['处置中', WARN], pending: ['待处置', MUTE] }
 }
-const boolStyle = (b) => (b ? ['在勤', '#22c55e'] : ['休班', '#94a3b8'])
+const boolStyle = (b) => (b ? ['在勤', OK] : ['休班', MUTE])
+const LEVEL_STYLE = [
+  ['', MUTE], ['一般', OK], ['较大', WARN], ['重大', ORANGE], ['特别重大', DANGER]
+]
 const levelStyle = (lv) => {
   const n = Number(lv)
-  return ['', '一般', '较大', '重大', '特别重大'][n] ? [['', '#94a3b8'], ['一般', '#22c55e'], ['较大', '#ffd60a'], ['重大', '#ff9500'], ['特别重大', '#ff3b30']][n] : [String(lv), '#fff']
+  // 0 号是空级别（'lv' 为 0/空），落到兜底分支而不是显示成一个多余的行
+  return n > 0 && LEVEL_STYLE[n] ? LEVEL_STYLE[n] : [String(lv), MUTE]
 }
 const congStyle = (lv) => {
   const n = Number(lv)
-  return ['严重', '中度', '轻度'][n] ? [[n + ' 严重', '#ff3b30'], [n + ' 中度', '#ff9500'], [n + ' 轻度', '#ffd60a']][n] : [String(lv), '#fff']
+  return ['严重', '中度', '轻度'][n] ? [[n + ' 严重', DANGER], [n + ' 中度', ORANGE], [n + ' 轻度', WARN]][n] : [String(lv), MUTE]
 }
 const fmtCell = (row, col) => {
   const v = row[col.p]
@@ -298,7 +307,8 @@ const fmtCell = (row, col) => {
   const st = STATUS_STYLE[activeTab.value?.t]
   if (st && st[v]) return { t: st[v][0], c: st[v][1] }
   if (col.p === 'level') return activeTab.value.t === 'congestion' ? congStyle(v) : levelStyle(v)
-  return { t: String(v ?? ''), c: '#fff' }
+  // 兜底色是内联 style，写 var() 也一样生效；原来是 #fff（深色皮肤遗留），白卡片上会看不见
+  return { t: String(v ?? ''), c: 'var(--text)' }
 }
 
 /* ---------- 面板状态 ---------- */
@@ -482,7 +492,8 @@ const onMapPick = (e) => {
   form.lng = Number(lng.toFixed(6))
   form.lat = Number(lat.toFixed(6))
   if (pickMarker) pickMarker.setLngLat([lng, lat])
-  else pickMarker = new mapboxgl.Marker({ color: '#00e5ff' }).setLngLat([lng, lat]).addTo(map())
+  // 取点标记用主色（原为青色 #00e5ff，在亮色底图上几乎看不见）
+  else pickMarker = new mapboxgl.Marker({ color: PRIMARY }).setLngLat([lng, lat]).addTo(map())
   stopPick()
   ElMessage.success(`已取点：${form.lng.toFixed(6)}, ${form.lat.toFixed(6)}`)
 }
@@ -545,19 +556,18 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 .dm-panel {
   position: fixed;
   right: 14px;
-  top: 84px;
+  top: calc(var(--header-h) + 20px);
   bottom: 118px;
   width: min(700px, 48vw);
-  z-index: 96;
+  z-index: 96; /* 高于 --z-footer(90)，低于 --z-modal(100)：面板要在工具条之上，但不能盖过表单弹窗 */
   display: flex;
   flex-direction: column;
-  background: rgba(4, 16, 36, 0.9);
-  border: 1px solid rgba(56, 148, 255, 0.35);
-  border-radius: 12px;
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
-  color: #dbe7ff;
+  color: var(--text);
 }
 
 .dm-head {
@@ -565,21 +575,25 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid rgba(56, 148, 255, 0.25);
-  background: rgba(20, 60, 120, 0.25);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sub);
 }
 
 .dm-title { font-size: 15px; font-weight: 700; letter-spacing: 1px; }
-.dm-sub { font-size: 11px; color: rgba(150, 190, 255, 0.6); margin-left: 6px; font-weight: 400; }
+/* 标题图标：原为 🗄️ emoji（彩色位图、无法着色），换成底部工具条「数据管理」同一个字形，
+ * 图标语义与入口一一对应，同时跟着主题色走 */
+.dm-title .iconfont { color: var(--primary); font-size: 14px; margin-right: 4px; }
+.dm-sub { font-size: 11px; color: var(--text-mute); margin-left: 6px; font-weight: 400; }
 .dm-head-right { display: flex; align-items: center; gap: 6px; }
-.dm-re, .dm-close { color: #dbe7ff; }
+.dm-re, .dm-close { color: var(--text-sub); }
 .dm-state { font-size: 12px; display: inline-flex; align-items: center; gap: 5px; margin-right: 4px; }
 .dm-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.s-ok .dm-dot { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
-.s-loading .dm-dot { background: #ffd60a; box-shadow: 0 0 6px #ffd60a; animation: dm-blink 1s infinite; }
-.s-fail .dm-dot { background: #ff3b30; box-shadow: 0 0 6px #ff3b30; }
-.s-idle .dm-dot { background: #94a3b8; }
-.s-ok { color: #4ade80; } .s-fail { color: #ff6b6b; } .s-loading { color: #ffd60a; } .s-idle { color: #94a3b8; }
+.s-ok .dm-dot { background: var(--ok); }
+.s-loading .dm-dot { background: var(--warn); animation: dm-blink 1s infinite; }
+.s-fail .dm-dot { background: var(--danger); }
+.s-idle .dm-dot { background: var(--text-mute); }
+.s-ok { color: var(--ok); } .s-fail { color: var(--danger); }
+.s-loading { color: var(--warn); } .s-idle { color: var(--text-mute); }
 @keyframes dm-blink { 50% { opacity: 0.3; } }
 
 .dm-alert { margin: 8px 12px 0; }
@@ -587,23 +601,23 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 
 .dm-tabs { flex: none; padding: 0 10px; }
 :deep(.dm-tabs .el-tabs__header) { margin-bottom: 6px; }
-:deep(.dm-tabs .el-tabs__item) { color: rgba(190, 215, 255, 0.8); height: 34px; font-size: 12px; padding: 0 10px; }
-:deep(.dm-tabs .el-tabs__item.is-active) { color: #7dd3ff; }
-:deep(.dm-tabs .el-tabs__active-bar) { background: #38b6ff; }
+:deep(.dm-tabs .el-tabs__item) { color: var(--text-sub); height: 34px; font-size: 12px; padding: 0 10px; }
+:deep(.dm-tabs .el-tabs__item.is-active) { color: var(--primary); }
+:deep(.dm-tabs .el-tabs__active-bar) { background: var(--primary); }
 .dm-tablabel em {
   font-style: normal; font-size: 10px; margin-left: 3px; padding: 0 5px;
-  border-radius: 8px; background: rgba(56, 182, 255, 0.25); color: #7dd3ff;
+  border-radius: 8px; background: var(--primary-soft); color: var(--primary);
+  vertical-align: 1px;
 }
-.dm-tablabel em { vertical-align: 1px; }
 
 .dm-body { flex: 1; min-height: 0; padding: 0 12px; overflow: hidden; }
 .dm-panel .dm-body :deep(.el-table) {
-  --el-table-border-color: rgba(80, 140, 255, 0.15);
+  --el-table-border-color: var(--border);
   background-color: transparent; height: 100%;
 }
 .dm-panel .dm-body :deep(.el-table tr), .dm-panel .dm-body :deep(.el-table th.el-table__cell),
-.dm-panel .dm-body :deep(.el-table td.el-table__cell) { background-color: transparent; color: #dbe7ff; }
-.dm-panel .dm-body :deep(.el-table th.el-table__cell) { background: rgba(40, 100, 190, 0.15); font-weight: 600; }
+.dm-panel .dm-body :deep(.el-table td.el-table__cell) { background-color: transparent; color: var(--text); }
+.dm-panel .dm-body :deep(.el-table th.el-table__cell) { background: var(--bg-sub); font-weight: 600; }
 .dm-panel .dm-body :deep(.el-table__inner-wrapper::before) { height: 0; }
 .dm-panel .dm-body :deep(.el-table .el-button.is-link) { padding: 0 2px; }
 .dm-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
@@ -612,28 +626,38 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
 
 .dm-foot {
   flex: none; display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 12px; border-top: 1px solid rgba(56, 148, 255, 0.2);
+  padding: 8px 12px; border-top: 1px solid var(--border);
 }
-.dm-foot-tip { font-size: 11px; color: rgba(150, 190, 255, 0.65); }
+.dm-foot-tip { font-size: 11px; color: var(--text-mute); }
 
 /* ===== 表单弹层 ===== */
 .dm-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
 .dm-frow { display: flex; align-items: center; gap: 8px; }
 .dm-frow-wide { grid-column: 1 / -1; }
-.dm-flabel { flex: none; width: 82px; text-align: right; font-size: 13px; color: #cfe0ff; }
+.dm-flabel { flex: none; width: 82px; text-align: right; font-size: 13px; color: var(--text-sub); }
 .dm-frow > :not(.dm-flabel) { flex: 1; }
-.dm-req { color: #ff6b6b; font-style: normal; margin-left: 2px; }
+.dm-req { color: var(--danger); font-style: normal; margin-left: 2px; }
 .dm-coord { display: flex; gap: 6px; align-items: center; }
 .dm-coord .el-input-number { flex: 1; width: auto; }
 .dm-bitrow { display: flex; align-items: center; gap: 8px; }
-.dm-bit-txt { font-size: 12px; color: #9db8e8; }
+.dm-bit-txt { font-size: 12px; color: var(--text-mute); }
 .dm-draw { display: flex; align-items: center; gap: 8px; }
-.dm-draw-tip { font-size: 12px; color: #9db8e8; }
-.dm-picktip { grid-column: 1 / -1; margin: 0; font-size: 12px; color: #ffd60a; text-align: center; }
-:deep(.dm-dialog) { --el-dialog-bg-color: rgba(9, 26, 54, 0.97); border: 1px solid rgba(56, 148, 255, 0.4); border-radius: 10px; }
-:deep(.dm-dialog .el-dialog__title) { color: #e6f0ff; font-size: 15px; }
-:deep(.dm-dialog .el-dialog__body) { color: #dbe7ff; }
-:deep(.dm-dialog .el-input__wrapper), :deep(.dm-dialog .el-select__wrapper) { background: rgba(20, 45, 90, 0.5); box-shadow: 0 0 0 1px rgba(80, 140, 255, 0.25) inset; }
-:deep(.dm-dialog .el-input__inner), :deep(.dm-dialog .el-input-number) { color: #e6f0ff; }
-:deep(.dm-dialog .el-textarea__inner) { background: rgba(20, 45, 90, 0.5); color: #e6f0ff; }
+.dm-draw-tip { font-size: 12px; color: var(--text-mute); }
+.dm-picktip { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--warn); text-align: center; }
+/* 表单弹窗：Element Plus 的深色变量在亮色皮肤下反而更暗，这里显式拉回白卡片 */
+:deep(.dm-dialog) {
+  --el-dialog-bg-color: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+:deep(.dm-dialog .el-dialog__title) { color: var(--text); font-size: 15px; font-weight: 600; }
+:deep(.dm-dialog .el-dialog__body) { color: var(--text); }
+:deep(.dm-dialog .el-input__wrapper), :deep(.dm-dialog .el-select__wrapper) {
+  background: var(--bg-sub);
+  box-shadow: 0 0 0 1px var(--border) inset;
+}
+:deep(.dm-dialog .el-input__inner), :deep(.dm-dialog .el-input-number) { color: var(--text); }
+:deep(.dm-dialog .el-textarea__inner) { background: var(--bg-sub); color: var(--text); }
+:deep(.dm-dialog .el-textarea__inner::placeholder), :deep(.dm-dialog .el-input__inner::placeholder) { color: var(--text-mute); }
 </style>

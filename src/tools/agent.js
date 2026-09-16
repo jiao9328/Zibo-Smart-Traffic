@@ -51,6 +51,10 @@ const THEME_ALIAS = [
 
 /* ================= 图层开关 ================= */
 const LAYER_ALIAS = [
+  ['动态车辆', 'vehicle'], // 先于「车辆」，避免「车流」等口语漏配
+  ['模拟车辆', 'vehicle'],
+  ['车流', 'vehicle'],
+  ['车辆', 'vehicle'],
   ['公交站', 'busStop'], // 先于「公交」，避免 公交站点 误命中线路
   ['摄像头', 'camera'],
   ['监控', 'camera'],
@@ -68,7 +72,8 @@ const LAYER_ALIAS = [
 // 图层英文 key → 中文名（回复用）
 const LAYER_LABEL = {
   camera: '监控探头', trafficLight: '信号灯', police: '警员分布', congestion: '道路拥堵',
-  heat: '热力图', busRoute: '公交线路', busStop: '公交站点', building: '城市建筑', mainRoad: '道路图层'
+  heat: '热力图', busRoute: '公交线路', busStop: '公交站点', vehicle: '动态车辆',
+  building: '城市建筑', mainRoad: '道路图层'
 }
 
 /* ================= 道路分级（须先于图层开关：一级道路 含「道路」字样） ================= */
