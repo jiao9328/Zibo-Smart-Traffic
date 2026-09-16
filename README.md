@@ -144,7 +144,20 @@ VITE_DEEPSEEK_MODEL=deepseek-v4-pro             # 模型名（选填）
 pnpm dev          # 启动开发服务器 → http://localhost:5173
 pnpm build        # 生产构建 → dist/
 pnpm preview      # 本地预览构建产物
+
+# ★ 一键启动：按需构建 + 前端 + 数据接口，单端口同源
+pnpm serve        # → http://localhost:3001，同时托管 dist/ 与 /api
 ```
+
+> **`pnpm serve` 做了什么**：`dist/` 不存在、或比 `src/` `index.html` `vite.config.js`
+> `package.json` `.env` 旧时，先跑一次 `vite build`，再起 Express 用**同一个端口**
+> 同时托管构建产物与 `/api`；都不满足则跳过构建，重复启动秒开。
+>
+> 与 `pnpm dev` 的分工：`dev` 是 5173 热更新、`/api` 代理到 3001，**要两个终端**；
+> `serve` 是 3001 单端口跑构建产物，**一个终端**，也就是部署形态。
+>
+> **`server/.env` 与 SQL Server 都不是必需的**：没有也照样启动，只是数据接口连不上，
+> 前端会自动回退内置演示数据（与入库数据同种子、同口径）。
 
 浏览器打开 http://localhost:5173 ，听到「淄博智慧交通管理系统已就绪」语音播报即启动成功。
 
@@ -183,6 +196,10 @@ pnpm dev       # 终端 2：前端 → http://localhost:5173
 ```
 
 开发模式下 `/api` 由 Vite 代理到 3001（见 `vite.config.js`；端口在 `server/.env` 的 `PORT` 改，两处需一致）；`pnpm build` 后用 `pnpm server` 单独启动即可同源托管前端 + 数据接口（部署形态）。
+
+> 只想开一个终端看完整效果（含数据接口）就用 **`pnpm serve`**：它按需构建 dist/ 后
+> 在 3001 单端口同时托管页面与 `/api`，`pnpm dev` + `pnpm server` 两个都省了。
+> `pnpm server` 与 `pnpm serve` 走同一支启动脚本，区别只在 `server` 不碰前端构建。
 
 **④ 在页面里增删改查**：点底部工具条「🗄️ 数据管理」打开面板 —— 表签切到「监控探头 / 信号灯 / 警员 / 实时警情 / 事件记录 / 拥堵路段 / 公交线路 / 公交站点」，即可分表浏览、新增、编辑、删除：
 * 新增/编辑坐标可手动输入，也可点「🎯 地图点选」在地图上取点回填；
