@@ -53,34 +53,7 @@ const renameInputsTo = (from, to) => {
     setTimeout(apply, 1500)
 }
 
-// 由路由 query 规划路线：起终点解析成精确坐标后填入导航控件，随后控件自动画线并缩放至整条线路
-// （与手动在导航面板输入起终点同一套流程，只是地名换成高德精确坐标，避免 Mapbox 中文地名解析错位）
-const plan = async () => {
-    const to = String(route.query.to || '').trim()
-    if (!to || !directionControl || !ready) return
-    const from = String(route.query.from || '淄博站').trim()
-    try {
-        const [fc, dc] = await Promise.all([resolveCenter(from), resolveCenter(to)])
-        if (fc) directionControl.setOrigin(fc) // [lng,lat] 数组：控件只认 字符串 或 坐标数组
-        if (dc) directionControl.setDestination(dc)
-        if (fc && dc) renameInputsTo(from, to) // 把输入框数字回显换回中文地名
-    } catch (e) { /* 解析/设置失败不阻塞（控件保持手输状态） */ }
-}
 
-// 地图就绪且插件 directions 数据源已建好后才允许规划：
-// 路线请求若早于数据源创建，插件会静默跳过画线（source 永远为空）
-const styleLoaded = () => !!map && !!map.loaded && map.loaded()
-const sourceReady = () => styleLoaded() && !!map.getSource && !!map.getSource('directions')
-const mapSettled = sourceReady
-const tryPlan = () => {
-    if (planned || !sourceReady()) return
-    // style 慢加载（十几秒+）时轮询不能设上限：首次规划成功才停，
-    // 否则路线会因超时放弃而永远画不出来
-    ready = true
-    planned = true
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
-    plan()
-}
 
 onMounted(() => {
     map = inject("$scene_map").map
