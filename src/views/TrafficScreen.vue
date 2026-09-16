@@ -546,68 +546,7 @@ const detail = computed(() => {
     }
   }
 
-  if (card === 'vehicle') {
-    const v = vehicles.find((x) => String(x.id) === rest)
-    if (!v) return null
-    return {
-      kind: '模拟车辆',
-      items: [
-        { k: '编号', v: carNo(v) + ' 号车' }, { k: '车牌', v: v.plate }, { k: '道路', v: v.road },
-        { k: '速度', v: kmh(v) + ' km/h' },
-        { k: '状态', v: (v.state === 'waiting' ? '红灯等待中' : '行驶中') + (v.congested ? '（拥堵缓行）' : '') },
-        { k: '前方信号灯', v: v.lightColor === 'none' ? '无' : v.lightColor + (v.lightDist ? `（${v.lightDist} m）` : '') }
-      ],
-      hint: '选中该车并飞往其位置（同时联动左侧车辆面板）',
-      target: { type: 'vehicle', id: v.id }
-    }
-  }
-  return null
-})
-
-/* ===================== 键盘：Esc 关闭 ===================== */
-const onKey = (e) => {
-  if (e.key === 'Escape') close()
-}
-onMounted(() => window.addEventListener('keydown', onKey))
-/* 本组件不开任何定时器（数据源 store.vehicleStats 1Hz / vehicles 300ms 自己会更新），
- * 唯一的清理义务就是这个全局键盘监听。 */
-onUnmounted(() => window.removeEventListener('keydown', onKey))
-</script>
-
-<style scoped>
-/* 全屏大屏：亮色，与站内白卡片皮肤一致（token 全部引 main.css，无裸色值 / 裸 z-index）。
- * z-index 走 --z-screen(300)：全站唯一故意盖住底部工具条与 AI 悬浮球的浮层。 */
-.ts-screen {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-screen);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--bg-sub);
-  color: var(--text);
-}
-
-/* ===== 顶栏 ===== */
-.ts-header {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 8px 18px;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
-  box-shadow: var(--shadow);
-}
-
-.ts-title {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-}
-
+ 
 .ts-title .iconfont {
   font-size: 20px;
   color: var(--primary);
