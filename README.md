@@ -64,7 +64,7 @@
 ## 📁 核心目录结构
 
 ```text
-Zibo-SmartTransportation-WebGIS/
+Zibo-Smart-Traffic/
 ├── public/                     # 静态资源与调试页
 ├── scripts/                    # 数据抓取与 CDP 端到端验证脚本
 ├── db/                         # 数据库脚本：setup.sql 建库建表 / seed.sql 业务数据（SSMS 执行）
@@ -112,14 +112,14 @@ Zibo-SmartTransportation-WebGIS/
 ### 1. 克隆项目并安装依赖（首次必做！）
 
 ```bash
-git clone https://github.com/jiao9328/WebGIS-demo.git
-cd WebGIS-demo
+git clone https://github.com/jiao9328/Zibo-Smart-Traffic.git
+cd Zibo-Smart-Traffic
 pnpm install      # 或 npm install；安装后 node_modules 才会出现
 ```
 
 ### 2. 配置 API Key（Mapbox 必填，否则地图白屏）
 
-密钥**不入版本库**（`.env` 已被 .gitignore 排除，GitHub 推送保护也会自动拦截含密钥的提交），仓库提供 `env.example` 模板，复制后填入自己的 Key：
+密钥**不入版本库**（`.env` 已被 .gitignore 排除，GitHub 推送保护也会自动拦截含密钥的提交），仓库提供 `.env.example` 模板，复制后填入自己的 Key：
 
 ```bash
 # Windows CMD:   copy .env.example .env
@@ -155,7 +155,7 @@ pnpm preview      # 本地预览构建产物
 * **纯前端本地校验**：不连接后端、不读数据库——只跑 `npm run dev` 打开 http://localhost:5173 即停在前端登录页，登录成功原地进入系统，开箱即用。
 * **账号口令**：默认 `admin` / `123456`；需要更换时在 `.env` 用 `VITE_ADMIN_USERNAME` / `VITE_ADMIN_PASSWORD` 覆盖（`.env` 不入版本库，改完重启 dev 生效）。
 * 登录成功后右上角 Header 显示当前用户与「退出登录」按钮。
-* 注：校验为**前端演示/课程级**（路由拦截），`/api` 数据接口本身保持开放，请勿用于生产级鉴权场景。
+* 注：校验为**前端演示级**（路由拦截），`/api` 数据接口本身保持开放，请勿用于生产级鉴权场景。
 
 **🔐 登录页** > 本地账号校验，登录成功原地进入系统（地图后台已就绪，无二次加载）。
 <img width="1347" alt="登录页" src="./screenshots/login.png" />
@@ -222,4 +222,4 @@ pnpm dev       # 终端 2：前端 → http://localhost:5173
 
 ## 🤝 贡献与许可
 
-本项目为 WebGIS 课程结课实践项目，公开分享供学习与交流。欢迎在 [Issues](https://github.com/jiao9328/WebGIS-demo/issues) 中提问、反馈或交流想法。
+本项目为 WebGIS 开发实践项目，公开分享供学习与交流。欢迎在 [Issues](https://github.com/jiao9328/Zibo-Smart-Traffic/issues) 中提问、反馈或交流想法。
