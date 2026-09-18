@@ -22,7 +22,152 @@
     </div>
 
     <!-- ===================== 主体：6 张卡 ===================== -->
-   
+    <div class="ts-grid">
+      <!-- ① 区县穿透统计：把 6 张互不相关的表按区县聚到一起（原来只能 一张一张图层看） -->
+      <div class="ts-card ui-panel" data-card="district">
+        <div class="ui-panel-title">
+          区县穿透统计
+          <span class="item-sub ts-title-sub">6 类数据源按区县聚合</span>
+        </div>
+        <div class="ts-list">
+          <div v-for="d in districtRows" :key="d.name" class="ts-row"
+            :class="{ on: isActive('district:' + d.name) }" role="button" tabindex="0"
+            @click="pick('district:' + d.name)" @keydown.enter.prevent="pick('district:' + d.name)"
+            @dblclick="locateActive">
+            <span class="ts-row-name">{{ d.name }}</span>
+            <span class="item-sub">覆盖 {{ d.covered }}/6 源</span>
+            <span class="ts-nums">
+              <i>探头 <b :class="{ zero: !d.camera }">{{ d.camera }}</b>
+                <em v-if="d.cameraFault">故障 {{ d.cameraFault }}</em></i>
+              <i>信号灯 <b :class="{ zero: !d.light }">{{ d.light }}</b>
+                <em v-if="d.lightFault">故障 {{ d.lightFault }}</em></i>
+              <i>警力 <b :class="{ zero: !d.police }">{{ d.police }}</b>
+                <em v-if="d.policeOff">离勤 {{ d.policeOff }}</em></i>
+              <i>拥堵 <b :class="{ zero: !d.congestion }">{{ d.congestion }}</b>
+                <em v-if="d.congestSevere">严重 {{ d.congestSevere }}</em></i>
+              <i>警情 <b :class="{ zero: !d.alert }">{{ d.alert }}</b>
+                <em v-if="d.alertPending">待处置 {{ d.alertPending }}</em></i>
+              <i>事件 <b :class="{ zero: !d.event }">{{ d.event }}</b></i>
+            </span>
+          </div>
+          <p v-if="!districtRows.length" class="ts-empty item-sub">{{ EMPTY }}</p>
+        </div>
+        <!-- 源数据覆盖说明：探头/信号灯/拥堵三类只覆盖部分区县，不写清楚的话
+             「点开博山区一整屏 0」会被当成 bug -->
+        <p class="item-sub ts-note">
+          源数据限制：探头覆盖 4 个区县、信号灯 4 个、拥堵 3 个；警力与事件为 8 区县全覆盖。
+          <b>0 表示该区无此类设施</b>，不是告警。
+        </p>
+      </div>
+
+      <!-- ② 拥堵路段排行：点一条 → 底部详情 → 「在地图上查看」飞过去并打开拥堵图层 -->
+      <div class="ts-card ui-panel" data-card="congestion">
+        <div class="ui-panel-title">
+          拥堵路段排行
+          <span class="item-sub ts-title-sub">按流量降序 · {{ congestRank.length }} 条</span>
+        </div>
+        <div class="ts-list">
+          <div v-for="c in congestRank" :key="c.id" class="ts-row"
+            :class="{ on: isActive('congestion:' + c.id) }" role="button" tabindex="0"
+            @click="pick('congestion:' + c.id)" @keydown.enter.prevent="pick('congestion:' + c.id)"
+            @dblclick="locateActive">
+            <span class="ts-row-name ts-ellipsis">{{ c.name }}</span>
+            <span class="item-sub">{{ c.area }}</span>
+            <span class="ts-bar"><i :style="{ width: barW(c.flow), background: levelColor(c.level) }"></i></span>
+            <span class="ts-row-val">{{ c.flow }}<i>辆/h</i></span>
+            <span class="item-sub">{{ c.level_name }} · {{ c.avg_speed }}km/h</span>
+          </div>
+          <p v-if="!congestRank.length" class="ts-empty item-sub">{{ EMPTY }}</p>
+        </div>
+      </div>
+
+      <!-- ③ 待处置警情：这类数据**没有对应地图图层**，定位靠飞行 + 要素气泡 -->
+      <div class="ts-card ui-panel" data-card="alert">
+        <div class="ui-panel-title">
+          警情处置清单
+          <span class="item-sub ts-title-sub">待处置优先 · 按已过时长降序</span>
+        </div>
+        <div class="ts-chips">
+          <span v-for="f in alertFilters" :key="f.key" class="ts-chip"
+            :class="{ on: alertFilter === f.key }" @click="alertFilter = f.key">
+            {{ f.label }} {{ f.n }}
+          </span>
+        </div>
+        <div class="ts-list">
+          <div v-for="a in alertRank" :key="a.id" class="ts-row"
+            :class="{ on: isActive('alert:' + a.id) }" role="button" tabindex="0"
+            @click="pick('alert:' + a.id)" @keydown.enter.prevent="pick('alert:' + a.id)"
+            @dblclick="locateActive">
+            <span class="ts-lv" :class="'lv' + a.level">{{ a.level }}级</span>
+            <span class="ts-row-name">{{ a.type }}</span>
+            <span class="item-sub ts-ellipsis">{{ a.area }} · {{ a.road }}</span>
+            <span class="ts-row-val">{{ a.minutes_ago }}<i>分钟前</i></span>
+            <span class="ts-tag" :class="a.status">{{ a.status === 'pending' ? '待处置' : '处理中' }}</span>
+          </div>
+          <p v-if="!alertRank.length" class="ts-empty item-sub">当前筛选下没有警情记录</p>
+        </div>
+      </div>
+
+      <!-- ④ 设备工况巡检：三类故障汇成一张「待处理清单」 -->
+      <div class="ts-card ui-panel" data-card="fault">
+        <div class="ui-panel-title">
+          设备工况巡检
+          <span class="item-sub ts-title-sub">按影响通行程度排序</span>
+        </div>
+        <div class="ts-chips">
+          <span v-for="f in faultChips" :key="f.key" class="ts-chip"
+            :class="{ on: faultFilter === f.key, zero: !f.n }" @click="faultFilter = f.key">
+            {{ f.label }} {{ f.n }}
+          </span>
+        </div>
+        <div class="ts-list">
+          <div v-for="f in faultList" :key="f.key" class="ts-row"
+            :class="{ on: isActive(f.key) }" role="button" tabindex="0"
+            @click="pick(f.key)" @keydown.enter.prevent="pick(f.key)" @dblclick="locateActive">
+            <span class="ts-tag" :class="f.kind">{{ f.kindLabel }}</span>
+            <span class="ts-row-name">{{ f.name }}</span>
+            <span class="item-sub">{{ f.area }}</span>
+            <span class="item-sub ts-ellipsis">{{ f.road }}</span>
+          </div>
+          <p v-if="!faultList.length" class="ts-empty item-sub">
+            {{ faultRows.length ? '当前筛选下没有记录' : '巡检正常：无故障探头 / 故障信号灯 / 离勤警员' }}
+          </p>
+        </div>
+      </div>
+
+      <!-- ⑤ 车辆实时追踪：15 辆车的编号/颜色与地图 marker、左侧车辆面板三方同源 -->
+      <div class="ts-card ui-panel" data-card="vehicle">
+        <div class="ui-panel-title">
+          车辆实时追踪
+          <span class="item-sub ts-title-sub">前端模拟 · 300ms 刷新</span>
+        </div>
+        <div class="ts-vstat">
+          <span>行驶 <b class="ok">{{ vs.running }}</b></span>
+          <span>红灯停 <b class="warn">{{ vs.waiting }}</b></span>
+          <span>拥堵缓行 <b class="warn">{{ vs.onCongested }}</b></span>
+          <span>均速 <b class="cy">{{ vs.avgSpeed }}</b> km/h</span>
+        </div>
+        <div class="ts-vlayer">
+          <span class="item-sub">地图车辆图层：{{ store.trafficOn.vehicle ? '已开' : '已关' }}</span>
+          <span v-if="!store.trafficOn.vehicle" class="ts-chip on" @click="setTrafficLayerVisible('vehicle', true)">
+            打开图层
+          </span>
+        </div>
+        <div class="ts-list">
+          <div v-for="v in vehicles" :key="v.id" class="ts-row"
+            :class="{ on: isActive('vehicle:' + v.id) }" :style="{ '--vm-color': carColor(v.id) }"
+            role="button" tabindex="0" @click="pick('vehicle:' + v.id)"
+            @keydown.enter.prevent="pick('vehicle:' + v.id)" @dblclick="locateActive"
+            @mouseenter="store.hoveredVehicleId = v.id" @mouseleave="store.hoveredVehicleId = null">
+            <b class="ts-no">{{ carNo(v) }}</b>
+            <span class="ts-dot" :class="v.state"></span>
+            <span class="ts-plate">{{ v.plate }}</span>
+            <span class="item-sub ts-ellipsis">{{ v.road }}</span>
+            <span class="ts-light" :class="v.lightColor">{{ v.lightColor === 'none' ? '·' : '◉' }}</span>
+            <span class="ts-row-val">{{ kmh(v) }}<i>km/h</i></span>
+          </div>
+        </div>
+      </div>
 
       <!-- ⑥ 运行态势：唯一一处真·实时序列（每秒刷新） -->
       <div class="ts-card ui-panel" data-card="trend">
