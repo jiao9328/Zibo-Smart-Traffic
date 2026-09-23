@@ -236,39 +236,3 @@ const lineChart = computed(() => ({
   font-weight: 600;
 }
 
-/* ===== 动态车辆·信号灯联动块 ===== */
-.vp-block {
-  display: flex;
-  flex-direction: column;
-}
-
-/* 4 项速览：行驶中 / 红灯等待 / 拥堵缓行 / 均速 */
-.hosp4 {
-  display: flex;
-  justify-content: space-around;
-  text-align: center;
-  /* 与下方折线留出呼吸感：原来只有 2px，标签紧贴曲线 */
-  margin-bottom: 8px;
-  flex: none;
-}
-
-.hosp4 .it {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.3;
-}
-
-.hosp4 .it b {
-  font-size: 17px;
-  font-weight: bold;
-}
-
-.hosp4 .it b.ok { color: var(--ok); }
-.hosp4 .it b.warn { color: var(--danger); }
-.hosp4 .it b.cy { color: var(--primary); }
-
-.hosp4 .it span {
-  font-size: 11px;
-  color: var(--text-mute);
-}
-</style>
