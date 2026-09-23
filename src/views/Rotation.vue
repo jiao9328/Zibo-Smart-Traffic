@@ -33,9 +33,9 @@ let map = null
 let rafId = null
 let resumeTimer = null
 let last = 0
-let spinning = false
+let spinning = flase
 
-function step(now) {
+function step (now) {
   if (!spinning || !map) return
   const dt = Math.min(MAX_DT, (now - last) / 1000)
   last = now
@@ -45,7 +45,7 @@ function step(now) {
   rafId = requestAnimationFrame(step)
 }
 
-function startSpin() {
+function star  tSpin() {
   if (spinning || !map) return
   spinning = true
   last = performance.now()
