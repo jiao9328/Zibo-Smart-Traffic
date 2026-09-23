@@ -236,11 +236,7 @@ const lineChart = computed(() => ({
   font-weight: 600;
 }
 
-/* ===== 动态车辆·信号灯联动块 ===== */
-.vp-block {
-  display: flex;
-  flex-direction: column;
-}
+
 
 /* 4 项速览：行驶中 / 红灯等待 / 拥堵缓行 / 均速 */
 .hosp4 {
